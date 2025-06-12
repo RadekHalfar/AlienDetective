@@ -36,13 +36,31 @@ globalVariables(
 )
 
 
+#' Fetch GBIF occurrence data for a species
+#' 
+#' @param species Character. The species name to search for.
+#' @param hasCoordinate Logical. Return only records with coordinates? Default TRUE.
+#' @param continent Character. Continent to search in. Default "europe".
+#' @param basisOfRecord Character vector. Types of records to include.
+#' @param fields Character vector. Fields to retrieve from GBIF.
+#' @param limit Numeric. Maximum number of records to return.
+#' @param output_dir Character. Directory to save results (unused).
+#' @return A data.table with occurrence data or NULL if no data found.
+#' @import data.table
+#' @export
 fetch_gbif_data <- function(species,
-                            hasCoordinate = TRUE,
-                            continent = "europe",
-                            basisOfRecord = c("OBSERVATION", "MACHINE_OBSERVATION", "HUMAN_OBSERVATION", "MATERIAL_SAMPLE", "LIVING_SPECIMEN", "OCCURRENCE"),
-                            fields = c("decimalLatitude", "decimalLongitude", "year", "month", "country"),
-                            limit = 10000,
-                            output_dir) {
+                          hasCoordinate = TRUE,
+                          continent = "europe",
+                          basisOfRecord = c("OBSERVATION", "MACHINE_OBSERVATION", "HUMAN_OBSERVATION", 
+                                          "MATERIAL_SAMPLE", "LIVING_SPECIMEN", "OCCURRENCE"),
+                          fields = c("decimalLatitude", "decimalLongitude", "year", "month", "country"),
+                          limit = 10000,
+                          output_dir) {
+  
+  # Input validation
+  if (!is.character(species) || length(species) != 1) {
+    stop("species must be a single character string")
+  }
   
   # Get GBIF data
   data_list <- rgbif::occ_search(
@@ -54,51 +72,49 @@ fetch_gbif_data <- function(species,
     limit = limit
   )
   
-  # Initialize result as data.table
-  res <- data.table::data.table()
+  # Process data in a single data.table operation
+  res <- rbindlist(
+    lapply(seq_along(data_list), function(i) {
+      dt <- data_list[[i]]$data
+      if (is.null(dt) || nrow(dt) == 0) return(NULL)
+      
+      # Convert to data.table and add basisOfRecord
+      dt <- as.data.table(dt)
+      dt[, basisOfRecord := names(data_list)[i]]
+      dt
+    }),
+    use.names = TRUE,
+    fill = TRUE
+  )
   
-  # Process each data frame in the list
-  for (i in seq_along(data_list)) {
-    if (is.null(data_list[[i]]$data) || nrow(data_list[[i]]$data) == 0) {
-      next
-    }
-    
-    # Convert to data.table
-    dt <- data.table::as.data.table(data_list[[i]]$data)
-    
-    # Add missing columns
-    missing_cols <- setdiff(fields, names(dt))
-    if (length(missing_cols) > 0) {
-      dt[, (missing_cols) := NA]
-    }
-    
-    # Add basisOfRecord
-    dt[, basisOfRecord := names(data_list)[i]]
-    
-    # Combine results
-    res <- data.table::rbindlist(list(res, dt), use.names = TRUE, fill = TRUE)
-  }
-  
-  if (nrow(res) > 0) {
-    # Reorder columns
-    res <- res[, c(fields, "basisOfRecord"), with = FALSE]
-    
-    # Rename lat/long columns
-    data.table::setnames(res,
-                        old = c("decimalLatitude", "decimalLongitude"),
-                        new = c("latitude", "longitude"),
-                        skip_absent = TRUE)
-    
-    # Remove NA coordinates
-    res <- res[!is.na(latitude) & !is.na(longitude)]
-    
-    return(res)
-  } else {
-    error_message <- paste0("No GBIF records found for species \"", species, "\"")
-    message(error_message)
+  if (nrow(res) == 0) {
+    message(sprintf("No GBIF records found for species '%s'", species))
     return(NULL)
   }
+  
+  # Ensure all required fields exist
+  missing_cols <- setdiff(fields, names(res))
+  if (length(missing_cols) > 0) {
+    res[, (missing_cols) := NA]
+  }
+  
+  # Rename and select columns
+  setnames(res, 
+           old = c("decimalLatitude", "decimalLongitude"),
+           new = c("latitude", "longitude"),
+           skip_absent = TRUE)
+  
+  # Remove NA coordinates and return
+  res <- res[!is.na(latitude) & !is.na(longitude), 
+             c(fields, "basisOfRecord"), with = FALSE]
+  
+  # Optimize memory usage
+  data.table::setcolorder(res, c(fields, "basisOfRecord"))
+  data.table::setkeyv(res, c("latitude", "longitude"))
+  
+  return(res[])
 }
+
 
 # Function to check if point is on land (TRUE = land, FALSE = sea)
 is_on_land <- function(lat, lon) {
@@ -447,74 +463,130 @@ plot.dist.by.year <- function(species, location, distances, output_dir) {
 }
 
 # Process each coordinate pair
+#' Process coordinates to ensure they are at sea
+#' 
+#' @param lat Numeric vector of latitudes
+#' @param lon Numeric vector of longitudes
+#' @return A data.table with processed coordinates and distances moved
+#' @import data.table
+#' @export
 process_coords <- function(lat, lon) {
-  if (!is_on_land(lat, lon)) {
-    return(data.table::data.table(
-      latitude_moved = lat, 
-      longitude_moved = lon, 
-      dist_moved = 0
-    ))
+  # Input validation
+  if (length(lat) != length(lon)) {
+    stop("lat and lon must be of the same length")
   }
-    
-  moved <- move_to_sea(lat, lon)
-  if (is.null(moved)) return(NULL)
-    
-  data.table::data.table(
-    latitude_moved = moved$coords[2],
-    longitude_moved = moved$coords[1],
-    dist_moved = round(moved$dist/1000, 2)
+  
+  # Initialize result data.table
+  result <- data.table(
+    latitude = lat,
+    longitude = lon,
+    latitude_moved = as.numeric(NA),
+    longitude_moved = as.numeric(NA),
+    dist_moved = 0.0
   )
+  
+  # Process coordinates in chunks to avoid memory issues
+  chunk_size <- 1000
+  n_chunks <- ceiling(nrow(result) / chunk_size)
+  
+  for (i in seq_len(n_chunks)) {
+    idx_start <- (i - 1) * chunk_size + 1
+    idx_end <- min(i * chunk_size, nrow(result))
+    chunk <- result[idx_start:idx_end]
+    
+    # Process coordinates in parallel if possible
+    chunk[, is_land := mapply(is_on_land, latitude, longitude)]
+    
+    # Handle points on land
+    land_idx <- which(chunk$is_land)
+    if (length(land_idx) > 0) {
+      moved <- lapply(land_idx, function(i) {
+        move_to_sea(chunk$latitude[i], chunk$longitude[i])
+      })
+      
+      # Update moved coordinates
+      for (j in seq_along(land_idx)) {
+        idx <- land_idx[j]
+        if (!is.null(moved[[j]])) {
+          set(chunk, i = idx, j = "latitude_moved", value = moved[[j]]$coords[2])
+          set(chunk, i = idx, j = "longitude_moved", value = moved[[j]]$coords[1])
+          set(chunk, i = idx, j = "dist_moved", value = round(moved[[j]]$dist/1000, 2))
+        } else {
+          # If move_to_sea failed, keep original coords with NA for moved columns
+          set(chunk, i = idx, j = "latitude_moved", value = chunk$latitude[idx])
+          set(chunk, i = idx, j = "longitude_moved", value = chunk$longitude[idx])
+        }
+      }
+    }
+    
+    # For points already at sea, just copy the coordinates
+    sea_idx <- which(!chunk$is_land)
+    if (length(sea_idx) > 0) {
+      set(chunk, i = sea_idx, j = "latitude_moved", value = chunk$latitude[sea_idx])
+      set(chunk, i = sea_idx, j = "longitude_moved", value = chunk$longitude[sea_idx])
+    }
+    
+    # Remove temporary column
+    chunk[, is_land := NULL]
+    
+    # Update result
+    result[idx_start:idx_end] <- chunk
+  }
+  
+  # Set column order and return
+  setcolorder(result, c("latitude", "longitude", "latitude_moved", "longitude_moved", "dist_moved"))
+  setkeyv(result, c("latitude", "longitude"))
+  
+  return(result[])
 }
 
 # Process species locations and calculate distances
-#' Process Species Locations
-#' 
-#' @param species Character string of the species name to process
-#' @param species_location data.table with species detection data
-#' @param location_coordinates data.table with location coordinates
-#' @param unique_coords data.table with unique coordinates to calculate distances to
-#' @param r Raster layer for spatial operations
-#' @param cost_matrix Cost matrix for distance calculations
-#' @return Updated unique_coords data.table with distance columns added
-#' @import data.table
-#' @importFrom methods is
-#' @export
 process_species_locations <- function(species, species_location, location_coordinates, 
                                     unique_coords, r, cost_matrix) {
   # Input validation
-  if (!is.character(species) || length(species) != 1) {
-    stop("species must be a single character string")
-  }
+  stopifnot(
+    is.character(species) && length(species) == 1,
+    data.table::is.data.table(species_location) || is.data.frame(species_location),
+    data.table::is.data.table(location_coordinates) || is.data.frame(location_coordinates),
+    data.table::is.data.table(unique_coords) || is.data.frame(unique_coords)
+  )
   
   # Convert inputs to data.table if needed
   if (!data.table::is.data.table(species_location)) {
-    species_location <- data.table::as.data.table(species_location)
+    species_location <- as.data.table(species_location)
   }
   if (!data.table::is.data.table(location_coordinates)) {
-    location_coordinates <- data.table::as.data.table(location_coordinates)
+    location_coordinates <- as.data.table(location_coordinates)
   }
   if (!data.table::is.data.table(unique_coords)) {
-    unique_coords <- data.table::as.data.table(unique_coords)
+    unique_coords <- as.data.table(unique_coords)
   }
+  
+  # Make a copy to avoid modifying the original
+  result_dt <- data.table::copy(unique_coords)
   
   # Set keys for faster joins
   species_col <- names(species_location)[1]
   data.table::setkeyv(species_location, species_col)
   data.table::setkeyv(location_coordinates, "Observatory.ID")
   
-  # Get locations where species was detected
-  detected_locations <- names(
-    which(species_location[get(species_col) == species, 
-                         -1, with = FALSE] >= 1)
-  )
+  # Get locations where species was detected (using data.table's fast subset)
+  detected_locations <- names(which(
+    species_location[.(species), .SD, .SDcols = -1] >= 1
+  ))
   
-  # Process each detected location
-  for (location in detected_locations) {
+  if (length(detected_locations) == 0) {
+    message(sprintf("No detections found for species: %s", species))
+    return(result_dt)
+  }
+  
+  # Process locations in parallel if possible
+  results <- lapply(detected_locations, function(loc) {
     # Get coordinates for this location
-    coords <- location_coordinates[.(location), on = "Observatory.ID", nomatch = NULL]
+    coords <- location_coordinates[.(loc), nomatch = NULL]
     if (nrow(coords) != 1) {
-      message("Could not retrieve coordinates for \"", location, "\"")
-      next
+      message(sprintf("Could not retrieve coordinates for location: %s", loc))
+      return(NULL)
     }
     
     # Convert coordinates to numeric (handling comma as decimal separator)
@@ -524,33 +596,60 @@ process_species_locations <- function(species, species_location, location_coordi
     )]
     
     # Calculate distances
-    cat(">>> [DIST] Calculating distances to", species, "occurrences from", location, "\n")
-    result <- calculate.distances(
-      data = unique_coords,
-      latitude = coords$lat[1],
-      longitude = coords$lon[1],
-      raster_map = r,
-      cost_matrix = cost_matrix
-    )
+    message(sprintf("Calculating distances to %s occurrences from %s", species, loc))
     
-    # Add distance columns to unique_coords
-    col_names <- paste0(location, c("_seaway", "_geodesic"))
-    if (!is.null(result$sea_distances) || !is.null(result$geodesic_distances)) {
-      unique_coords[, (col_names) := .(
-        sea_distances = result$sea_distances,
-        geodesic_distances = result$geodesic_distances
-      )]
-    } else {
-      unique_coords[, (col_names) := .(
-        sea_distances = NA_real_,
-        geodesic_distances = NA_real_
-      )]
+    tryCatch({
+      result <- calculate.distances(
+        data = result_dt,
+        latitude = coords$lat[1],
+        longitude = coords$lon[1],
+        raster_map = r,
+        cost_matrix = cost_matrix
+      )
+      
+      # Return results with location prefix
+      if (!is.null(result$sea_distances) && !is.null(result$geodesic_distances)) {
+        data.table(
+          id = seq_len(nrow(result_dt)),
+          sea = result$sea_distances,
+          geo = result$geodesic_distances
+        )
+      } else {
+        NULL
+      }
+    }, error = function(e) {
+      message(sprintf("Error processing location %s: %s", loc, e$message))
+      NULL
+    })
+  })
+  
+  # Combine results
+  valid_results <- Filter(Negate(is.null), results)
+  if (length(valid_results) > 0) {
+    # Combine all results
+    combined <- rbindlist(valid_results, idcol = "location_idx")
+    
+    # Reshape and add to result_dt
+    for (i in seq_along(valid_results)) {
+      loc <- detected_locations[i]
+      loc_data <- combined[location_idx == i]
+      
+      if (nrow(loc_data) > 0) {
+        # Ensure we have the right number of rows
+        if (nrow(loc_data) == nrow(result_dt)) {
+          set(result_dt, j = paste0(loc, "_seaway"), value = loc_data$sea)
+          set(result_dt, j = paste0(loc, "_geodesic"), value = loc_data$geo)
+        } else {
+          warning(sprintf("Mismatch in row counts for location: %s", loc))
+        }
+      }
     }
   }
   
-  return(unique_coords)
+  # Optimize memory usage
+  data.table::setalloccol(result_dt)
+  return(result_dt[])
 }
-
 
 # In src/functions.R
 

@@ -66,12 +66,16 @@ if (length(args) == 0) {
 #   stop("Path to either an sf-formatted rasterized rds file or a polygon vector shape file must be provided.")
 # }
 
-# Read species-location presence/absence matrix
-species_location <- read.csv(species_location_path, sep = ";")
-# If there are more than one row per species, remove all but the first row for each species
-species_location <- species_location[!duplicated(species_location[1]),]
+# Read species-location presence/absence matrix using data.table
+species_location <- data.table::fread(species_location_path, sep = ";")
+# If there are more than one row per species, keep only the first row for each species
+species_location <- species_location[!duplicated(species_location, by = names(species_location)[1])]
 # Read table of coordinates for every location name (ObservatoryID)
-location_coordinates <- read.csv(location_coordinates_path, sep = ";")
+location_coordinates <- data.table::fread(location_coordinates_path, sep = ";")
+
+# Set keys for faster lookups
+data.table::setkeyv(species_location, names(species_location)[1])
+data.table::setkey(location_coordinates, "Observatory.ID")
 
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
