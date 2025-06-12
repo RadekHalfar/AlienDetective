@@ -33,9 +33,15 @@ graphics.off()
 # That way it's easier to maintain the code and see which packages are actually required as development progresses, and you also avoid clashes between
 # package namespaces, making sure that the correct function is always used regardless of which other packages the user has installed and loaded.
 cat(">>> [INIT] Checking for required packages...\n")
-packages <- c("rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize", 
-             "ggplot2", "rnaturalearth", "rnaturalearthdata", "dplyr", "foreach", 
-             "doParallel", "geosphere", "leaflet", "tidyr", "htmlwidgets")
+# Core packages currently required
+packages <- c(
+  "rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize",
+  "ggplot2", "rnaturalearth", "rnaturalearthdata", "geosphere"
+)
+
+# Optional extras if you re-enable parallelism or leaflet maps later:
+# extras <- c("dplyr", "foreach", "doParallel", "leaflet", "htmlwidgets", "tidyr")
+# packages <- c(packages, extras)
 
 # Install missing packages
 missing_pkgs <- setdiff(packages, rownames(installed.packages()))
@@ -87,6 +93,9 @@ data.table::setkey(location_coordinates, "Observatory.ID")
 species_subset <- c("Aurelia solida")
 species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
 #species_location <- species_location[c(2, 10, 57),] # Or subset a few species to try at random
+
+# Create a simple character vector of species names for easy iteration
+species_vec <- as.character(species_location[[1]])
 
 required_columns <- c("decimalLatitude", "decimalLongitude", "year", "month", "country")
 
@@ -173,27 +182,10 @@ dist_start <- Sys.time()
 # registerDoParallel(cluster)
 
 # Process species one by one
-for (i in seq_len(nrow(species_location))) {
-  # Extract species name safely
-  if (is.data.frame(species_location) || is.matrix(species_location)) {
-    species <- as.character(species_location[i, 1])
-  } else if (is.list(species_location)) {
-    species <- as.character(species_location[[1]][i])
-  } else {
-    species <- as.character(species_location[i])
-  }
-  
-  # Remove any potential list structure
-  if (is.list(species)) {
-    species <- unlist(species, use.names = FALSE)[1]
-  }
-  
-  # Ensure we have a valid species name
-  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
-    warning(sprintf("Invalid or missing species name at index %d", i))
-    next
-  }
-  
+for (species in species_vec) {
+  # skip empty / NA entries
+  if (is.na(species) || nchar(trimws(species)) == 0) next
+   
   # Process GBIF data for the species
   safe_name <- gsub(" ", "_", species)
   species_dir <- file.path(output_dir, safe_name)
@@ -285,27 +277,9 @@ dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
 
 plot_start <- Sys.time()
 
-# Iterate over species names in the species_location variable
-for (i in seq_len(nrow(species_location))) {
-  # Extract species name safely (same as first loop)
-  if (is.data.frame(species_location) || is.matrix(species_location)) {
-    species <- as.character(species_location[i, 1])
-  } else if (is.list(species_location)) {
-    species <- as.character(species_location[[1]][i])
-  } else {
-    species <- as.character(species_location[i])
-  }
-  
-  # Remove any potential list structure
-  if (is.list(species)) {
-    species <- unlist(species, use.names = FALSE)[1]
-  }
-  
-  # Skip if invalid species name
-  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
-    warning(sprintf("Invalid or missing species name at index %d", i))
-    next
-  }
+# Iterate over species names for plotting
+for (species in species_vec) {
+  if (is.na(species) || nchar(trimws(species)) == 0) next
   
   safe_name <- gsub(" ", "_", species)  # Change spaces to underscores for filenames
   species_dir <- file.path(output_dir, safe_name)
