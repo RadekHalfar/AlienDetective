@@ -287,36 +287,43 @@ for (species in species_vec) {
   
   # If the file exists, execute following lines
   if (file.exists(gbif_file)) {
-    # Read the species csv using the correct filename
-    distance_df <- read.csv(gbif_file)
-    #Change the format to a long format with pivot function
-    long_df <- distance_df |>
-      pivot_longer(
-        cols = contains("_seaway") | contains("_geodesic"), #Select all columns with _seaway and _geodesic
-        names_to = "location", #Change name of original columns (cols) to location column
-        values_to = "x" #Put values (distances) in a column called x
-      )|>
-      separate(location, into = c("location", "DistanceType"), sep = "_") #separate the location column into location where the location represents a ARMS location and the DistanceType the type of distance
-    long_sea <- long_df |>
-      filter(grepl("seaway", DistanceType)) #Put all data of seaway into a dataframe
-    long_geo <- long_df |>
-      filter(grepl("geodesic", DistanceType)) #Put all data of geodesic into dataframe
+    # Fast read via data.table
+    distance_dt <- data.table::fread(gbif_file)
+    
+    # Identify distance columns
+    dist_cols <- grep("(_seaway|_geodesic)$", names(distance_dt), value = TRUE)
+
+    # ensure all distance columns are numeric before melt
+    distance_dt[ , (dist_cols) := lapply(.SD, as.numeric), .SDcols = dist_cols]
+
+    # Melt to long format with value column 'x'
+    long_dt <- data.table::melt(
+      distance_dt,
+      measure.vars = dist_cols,
+      variable.name = "loc_type",
+      value.name   = "x",
+      variable.factor = FALSE
+    )
+    # Extract location and distance type from column name
+    long_dt[, `:=`(
+      DistanceType = fifelse(grepl("_seaway$", loc_type), "seaway", "geodesic"),
+      location     = sub("_(seaway|geodesic)$", "", loc_type)
+    )]
+    long_dt[, loc_type := NULL]
+    
+    # Year category via cut (vectorised)
+    brks  <- c(1965, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025)
+    labs  <- paste(head(brks, -1), tail(brks, -1), sep = "-")
+    long_dt[, year_category := cut(year, breaks = brks, labels = labs, right = FALSE)]
+    
+    # Split into sea / geo tables & clean NAs / Inf once
+    long_sea <- long_dt[DistanceType == "seaway" & !is.na(x) & is.finite(x)]
+    long_geo <- long_dt[DistanceType == "geodesic"]
     
   } else {
     warning("No output directory found for species \"", species, "\". Skipping plotting.")
     next
   }
-  
-  # Assign year categories
-  year_categories <- c("1965-1985", "1985-1990", "1990-1995",
-                       "1995-2000", "2000-2005", "2005-2010",
-                       "2010-2015", "2015-2020", "2020-2025")
-  long_sea$year_category <- sapply(long_sea$year, assign_year_category)
-  long_geo$year_category <- sapply(long_sea$year, assign_year_category)
-  
-  # clean dataframe from rows with Inf and NA in them
-  long_sea <- long_sea |>
-    filter(!is.na(x), is.finite(x))
   
   #Make a graph of all locations where that species is found
   country_final_plot <- country.final(
@@ -325,9 +332,11 @@ for (species in species_vec) {
     output_dir = species_dir)
   
   #Make a for loop that goes over every occurence location to make seperate graphs
-  for (loc in unique(long_sea$location)) {
-    sea_loc_data <- long_sea[long_sea$location == loc, ] #filter data on that specific location
-    geo_loc_data <- long_geo[long_geo$location == loc, ]
+  locs <- unique(long_sea$location)
+  for (loc in locs) {
+    sea_loc_data <- long_sea[location == loc]
+    geo_loc_data <- long_geo[location == loc]
+    combined_distances <- data.table::rbindlist(list(sea_loc_data, geo_loc_data), use.names = TRUE)
     
     # Plot functions by location
     plot_dist_sea <- plot.dist.sea(
