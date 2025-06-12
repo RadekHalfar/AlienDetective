@@ -72,17 +72,10 @@ fetch_gbif_data <- function(species,
     limit = limit
   )
   
-  # Process data in a single data.table operation
+  # Collapse all returned data.frames in one step – rbindlist handles conversion
   res <- rbindlist(
-    lapply(seq_along(data_list), function(i) {
-      dt <- data_list[[i]]$data
-      if (is.null(dt) || nrow(dt) == 0) return(NULL)
-      
-      # Convert to data.table and add basisOfRecord
-      dt <- as.data.table(dt)
-      dt[, basisOfRecord := names(data_list)[i]]
-      dt
-    }),
+    lapply(data_list, `[[`, "data"),   # pull the $data element
+    idcol = "basisOfRecord",           # names(data_list) becomes the id values
     use.names = TRUE,
     fill = TRUE
   )
@@ -98,19 +91,19 @@ fetch_gbif_data <- function(species,
     res[, (missing_cols) := NA]
   }
   
-  # Rename and select columns
-  setnames(res, 
-           old = c("decimalLatitude", "decimalLongitude"),
-           new = c("latitude", "longitude"),
-           skip_absent = TRUE)
+  # Rename latitude/longitude columns once
+  rename_map <- c(decimalLatitude = "latitude", decimalLongitude = "longitude")
+  setnames(res, old = names(rename_map), new = unname(rename_map), skip_absent = TRUE)
   
-  # Remove NA coordinates and return
-  res <- res[!is.na(latitude) & !is.na(longitude), 
-             c(fields, "basisOfRecord"), with = FALSE]
+  # Prepare output column order (after renaming)
+  out_cols <- c("latitude", "longitude", setdiff(fields, names(rename_map)), "basisOfRecord")
+  out_cols <- unique(out_cols[out_cols %in% names(res)])
   
-  # Optimize memory usage
-  data.table::setcolorder(res, c(fields, "basisOfRecord"))
-  data.table::setkeyv(res, c("latitude", "longitude"))
+  # Filter rows with valid coords and keep relevant columns
+  res <- res[!is.na(latitude) & !is.na(longitude), ..out_cols]
+  
+  # Key by coordinates for faster joins later
+  setkey(res, latitude, longitude)
   
   return(res[])
 }
@@ -185,17 +178,15 @@ calculate.distances <- function(data, latitude, longitude, raster_map, cost_matr
                 error_messages = "Input table has no entries"))
   }
   
-  # Ensure data is a data.table
-  if (!data.table::is.data.table(data)) {
-    data <- data.table::as.data.table(data)
-  }
+  # Ensure data is a data.table (no copy)
+  data.table::setDT(data)
   
   tryCatch({
     # Specify the PROJ4 string for WGS84
     proj4_crs <- sp::CRS("+init=EPSG:4326")
     
-    # Create a data.table with coordinates (using := for in-place modification)
-    coords_dt <- data.table::copy(data)
+    # Work directly on the incoming table
+    coords_dt <- data
     
     # Check if the required columns exist
     if (!all(c("longitude", "latitude") %in% names(coords_dt))) {
@@ -214,8 +205,8 @@ calculate.distances <- function(data, latitude, longitude, raster_map, cost_matr
     
     # Update coordinates
     coords_dt[, `:=`(
-      x_coord = ifelse(is.na(longitude_moved), longitude, longitude_moved),
-      y_coord = ifelse(is.na(latitude_moved), latitude, latitude_moved)
+      x_coord = data.table::fifelse(is.na(longitude_moved), longitude, longitude_moved),
+      y_coord = data.table::fifelse(is.na(latitude_moved), latitude, latitude_moved)
     )]
     
     # Create SpatialPoints objects
