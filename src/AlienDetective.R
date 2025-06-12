@@ -80,8 +80,8 @@ data.table::setkey(location_coordinates, "Observatory.ID")
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
 # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-species_subset <- c("Aurelia solida")
-species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
+#species_subset <- c("Aurelia solida")
+#species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
 #species_location <- species_location[c(2, 10, 57),] # Or subset a few species to try at random
 
 required_columns <- c("decimalLatitude", "decimalLongitude", "year", "month", "country")
@@ -168,12 +168,43 @@ dist_start <- Sys.time()
 # cluster <- makeCluster(num_cores)
 # registerDoParallel(cluster)
 
-for (species in species_location[,1]) {
-# foreach(species = species_location[,1],
-#         .packages = c("dplyr", "raster", "sp", "gdistance", "geodist")) %dopar% {
+# Debug output
+cat("Species location structure:\n")
+print(str(species_location))
+cat("First few rows of species_location:\n")
+print(head(species_location))
+
+# Process species one by one
+for (i in seq_len(nrow(species_location))) {
+  # Extract species name safely
+  if (is.data.frame(species_location) || is.matrix(species_location)) {
+    species <- as.character(species_location[i, 1])
+  } else if (is.list(species_location)) {
+    species <- as.character(species_location[[1]][i])
+  } else {
+    species <- as.character(species_location[i])
+  }
+  
+  # Remove any potential list structure
+  if (is.list(species)) {
+    species <- unlist(species, use.names = FALSE)[1]
+  }
+  
+  # Ensure we have a valid species name
+  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
+    warning(sprintf("Invalid or missing species name at index %d", i))
+    next
+  }
+  
   # Process GBIF data for the species
   safe_name <- gsub(" ", "_", species)
   species_dir <- file.path(output_dir, safe_name)
+  
+  # Ensure species_dir exists
+  if (!dir.exists(species_dir)) {
+    dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
+  }
+  
   gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
   
   # Load or fetch GBIF data
@@ -256,14 +287,36 @@ dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
 ## Plotting ##
 ##############
 
-#Iterate over species names in the species_location variable
-for (species in species_location[,1]) {
-  species_ <- gsub(" ", "_", species) #Change the space to a "_" to make sure the species file is found
-  species_dir <- file.path(output_dir, species_) #Put the species filename in a variable
-  #If the file exist execute following lines
-  if (file.exists(file.path(species_dir, paste0(species_, ".csv")))) {
-    #Read the species csv
-    distance_df <- read.csv(file.path(species_dir, paste0(species_, ".csv")))
+# Iterate over species names in the species_location variable
+for (i in seq_len(nrow(species_location))) {
+  # Extract species name safely (same as first loop)
+  if (is.data.frame(species_location) || is.matrix(species_location)) {
+    species <- as.character(species_location[i, 1])
+  } else if (is.list(species_location)) {
+    species <- as.character(species_location[[1]][i])
+  } else {
+    species <- as.character(species_location[i])
+  }
+  
+  # Remove any potential list structure
+  if (is.list(species)) {
+    species <- unlist(species, use.names = FALSE)[1]
+  }
+  
+  # Skip if invalid species name
+  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
+    warning(sprintf("Invalid or missing species name at index %d", i))
+    next
+  }
+  
+  safe_name <- gsub(" ", "_", species)  # Change spaces to underscores for filenames
+  species_dir <- file.path(output_dir, safe_name)
+  gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
+  
+  # If the file exists, execute following lines
+  if (file.exists(gbif_file)) {
+    # Read the species csv using the correct filename
+    distance_df <- read.csv(gbif_file)
     #Change the format to a long format with pivot function
     long_df <- distance_df |>
       pivot_longer(

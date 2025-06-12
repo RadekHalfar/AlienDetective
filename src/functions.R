@@ -7,33 +7,33 @@ NULL
 # This file contains various functions for the Alien Detective project
 # including data fetching, processing, and visualization utilities
 
-# Declare global variables to avoid R CMD check notes
-globalVariables(
-  c(
-    # data.table special symbols
-    ".", 
-    ":=", 
-    ".SD", 
-    ".N", 
-    ".I", 
-    ".GRP", 
-    ".BY", 
-    ".EACHI",
-    
-    # Our variables
-    "longitude_moved",
-    "latitude_moved",
-    "x_coord",
-    "y_coord",
-    "Observatory.ID",
-    "Latitude",
-    "Longitude",
-    "location",
-    "count",
-    "sea_distances",
-    "geodesic_distances"
-  )
-)
+## Declare global variables to avoid R CMD check notes
+#globalVariables(
+#  c(
+#    # data.table special symbols
+#    ".", 
+#    ":=", 
+#    ".SD", 
+#    ".N", 
+#    ".I", 
+#    ".GRP", 
+#    ".BY", 
+#    ".EACHI",
+#    
+#    # Our variables
+#    "longitude_moved",
+#    "latitude_moved",
+#    "x_coord",
+#    "y_coord",
+#    "Observatory.ID",
+#    "Latitude",
+#    "Longitude",
+#    "location",
+#    "count",
+#    "sea_distances",
+#    "geodesic_distances"
+#  )
+#)
 
 
 #' Fetch GBIF occurrence data for a species
