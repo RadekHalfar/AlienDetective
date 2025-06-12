@@ -4,16 +4,11 @@ rm(list = ls())
 # AlienDetective.R
 # Main script
 
-# Load required packages
-if (!requireNamespace("data.table", quietly = TRUE)) {
-  install.packages("data.table")
-}
-library(data.table)
 
 #############
 ### SETUP ###
 #############
-setup_start <- Sys.time()
+
 # Define number of cores  (place in comments for use on Windows OS)
 # num_cores <- 4
 # if (!is.numeric(num_cores) || num_cores <= 0 || num_cores != floor(num_cores)) {
@@ -24,7 +19,7 @@ setup_start <- Sys.time()
 # options(repos = c(CRAN = "https://cloud.r-project.org"))
 
 #setwd("~/AlienDetective")
-source("src/functions.R")
+source("src/functions_MGielen.R")
 
 # Reset graphics settings
 graphics.off()
@@ -32,54 +27,49 @@ graphics.off()
 # NB! No packages loaded here, only installed if missing. Better to use explicit namespaces instead [e.g. raster::extract() rather than just extract()].
 # That way it's easier to maintain the code and see which packages are actually required as development progresses, and you also avoid clashes between
 # package namespaces, making sure that the correct function is always used regardless of which other packages the user has installed and loaded.
-cat(">>> [INIT] Checking for required packages...\n")
-packages <- c("rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize", 
-             "ggplot2", "rnaturalearth", "rnaturalearthdata", "dplyr", "foreach", 
-             "doParallel", "geosphere", "leaflet", "tidyr", "htmlwidgets")
-
-# Install missing packages
-missing_pkgs <- setdiff(packages, rownames(installed.packages()))
-if (length(missing_pkgs) > 0) {
-  install.packages(missing_pkgs)
+#cat(">>> [INIT] Checking for required packages...\n")
+packages <- c("rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize", "ggplot2", "rnaturalearth", "rnaturalearthdata", "dplyr", "foreach", "doParallel", "geosphere", "leaflet", "tidyr", "htmlwidgets")
+for (package in packages) {
+  if(!requireNamespace(package, quietly = TRUE)) {
+    install.packages(package)
+  }
+  suppressPackageStartupMessages(library(package, character.only = TRUE))
 }
 
-# Load all packages
-invisible(lapply(packages, library, character.only = TRUE, quietly = TRUE))
+# If installation fails for a package because it is "not available for your version of R", try installing from source
+# install.packages(package, pkgType = "source")
+# Install the rnaturalearthhires package for a higher-resolution vector map
+# install.packages("devtools")
+# remotes::install_github("ropensci/rnaturalearthhires")
 
-# Parse command-line arguments with sensible defaults
-arg_defaults <- c(
-  file.path("data", "Species_Location_NIS.csv"),      # species_location_path
-  file.path("data", "Coordinates_NIS.csv"),            # location_coordinates_path
-  file.path("data", "rasterized_land_polygons.rds"),   # rasterized_path
-  file.path("data", "cost_matrix.rds"),                # cost_matrix_path
-  "output"                                              # output_dir
-)
-
+cat(">>> [INIT] Reading input data...\n")
 args <- commandArgs(trailingOnly = TRUE)
-# Use defaults if no args supplied
-if (length(args) == 0) args <- arg_defaults
-# Pad with defaults if fewer than expected
-if (length(args) < length(arg_defaults)) {
-  args <- c(args, arg_defaults[(length(args) + 1):length(arg_defaults)])
+species_location_path <- args[1]  # First argument: path to species file
+location_coordinates_path <- args[2]  # Second argument: path to coordinates file
+rasterized_path <- args[3]  # Third argument: path to rasterized sf-formatted world map (RDS file)
+cost_matrix_path <-args[4] # Fourth argument: path to transition matrix (RDS file)
+output_dir <- args[5]  # Fifth argument: output directory
+
+# Set file paths
+if (length(args) == 0) {
+  species_location_path <- file.path("data", "Species_Location_NIS.csv")
+  location_coordinates_path <- file.path("data", "Coordinates_NIS.csv")
+  land_polygons_path <- file.path("data", "land_polygons.shp")
+  rasterized_path <- file.path("data", "rasterized_land_polygons.rds")
+  cost_matrix_path <- file.path("data", "cost_matrix.rds")
+  output_dir <- "output"
 }
 
-# Assign to named variables in the current environment
-list2env(setNames(as.list(args), c("species_location_path", "location_coordinates_path", 
-                          "rasterized_path", "cost_matrix_path", "output_dir")),
-         envir = environment())
+# if (!file.exists(land_polygons_path) && !file.exists(rasterized_path)) {
+#   stop("Path to either an sf-formatted rasterized rds file or a polygon vector shape file must be provided.")
+# }
 
-# Read species-location presence/absence matrix using data.table
-species_location      <- data.table::fread(species_location_path,  sep = ";")
-# If there are more than one row per species, keep only the first row for each species
-species_location      <- species_location[!duplicated(species_location, by = names(species_location)[1])]
-location_coordinates  <- data.table::fread(location_coordinates_path, sep = ";")
-# Explicitly ensure both are data.table objects (one-time conversion)
-data.table::setDT(species_location)
-data.table::setDT(location_coordinates)
-
-# Set keys for faster lookups
-data.table::setkeyv(species_location, names(species_location)[1])
-data.table::setkey(location_coordinates, "Observatory.ID")
+# Read species-location presence/absence matrix
+species_location <- read.csv(species_location_path, sep = ";")
+# If there are more than one row per species, remove all but the first row for each species
+species_location <- species_location[!duplicated(species_location[1]),]
+# Read table of coordinates for every location name (ObservatoryID)
+location_coordinates <- read.csv(location_coordinates_path, sep = ";")
 
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
@@ -133,7 +123,7 @@ if (file.exists(cost_matrix_path)) {
 ### Check input coordinates file ###
 ####################################
 # Check if input coordinates are in sea, if not, move them to sea
-cat(">>> [COORD] Checking if input coordinates are in sea ...\n")
+#cat(">>> [COORD] Checking if input coordinates are in sea ...\n")
 for (i in 1:nrow(location_coordinates)) {
   loc_name <- location_coordinates$Observatory.ID[i]
   longitude <- as.numeric(gsub(",", ".", location_coordinates$Longitude[i]))
@@ -164,7 +154,7 @@ for (i in 1:nrow(location_coordinates)) {
 #############################
 ### DISTANCES CALCULATION ###
 #############################
-dist_start <- Sys.time()
+
 # For non-parallel execution -> use "for" loop
 # For parallel execution -> use "foreach" loop + parallel setup
 
@@ -172,109 +162,103 @@ dist_start <- Sys.time()
 # cluster <- makeCluster(num_cores)
 # registerDoParallel(cluster)
 
-# Process species one by one
-for (i in seq_len(nrow(species_location))) {
-  # Extract species name safely
-  if (is.data.frame(species_location) || is.matrix(species_location)) {
-    species <- as.character(species_location[i, 1])
-  } else if (is.list(species_location)) {
-    species <- as.character(species_location[[1]][i])
-  } else {
-    species <- as.character(species_location[i])
-  }
-  
-  # Remove any potential list structure
-  if (is.list(species)) {
-    species <- unlist(species, use.names = FALSE)[1]
-  }
-  
-  # Ensure we have a valid species name
-  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
-    warning(sprintf("Invalid or missing species name at index %d", i))
-    next
-  }
-  
-  # Process GBIF data for the species
-  safe_name <- gsub(" ", "_", species)
-  species_dir <- file.path(output_dir, safe_name)
-  
-  # Ensure species_dir exists
-  if (!dir.exists(species_dir)) {
-    dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
-  }
-  
-  gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
-  
-  # Load or fetch GBIF data
-  if (file.exists(gbif_file)) {
+for (species in species_location[,1]) {
+# foreach(species = species_location[,1],
+#         .packages = c("dplyr", "raster", "sp", "gdistance", "geodist")) %dopar% {
+  species_dir <- file.path(output_dir, gsub(" ", "_", species))
+  gbif_occurrences_file <- file.path(species_dir, paste0(gsub(" ", "_", species), ".csv"))
+  if (file.exists(gbif_occurrences_file)) {
     #cat(">>> [GBIF] Loading GBIF data for", species, "\n")
-    gbif_occurrences <- data.table::fread(gbif_file)
+    gbif_occurrences <- read.csv(gbif_occurrences_file, header = TRUE)
   } else {
     #cat(">>> [GBIF] Fetching GBIF data for", species, "\n")
     gbif_occurrences <- fetch_gbif_data(species, fields = required_columns)
-    if (is.null(gbif_occurrences)) return(NULL)
-    
-    dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
-    data.table::fwrite(gbif_occurrences, file = gbif_file)
+    if (!is.null(gbif_occurrences)) {
+      if (!dir.exists(species_dir)) {
+        dir.create(species_dir, recursive = TRUE)
+      }
+      write.csv(gbif_occurrences, file = gbif_occurrences_file, row.names = FALSE)
+    } else {
+      # Skip species that have no GBIF records
+      return(NULL)
+    }
   }
   
-  # Ensure gbif_occurrences is a data.table (single call, no repeated checks)
-  data.table::setDT(gbif_occurrences)
-  
-  # Process coordinates to ensure they're at sea
   #cat(">>> [GBIF] Ensuring GBIF occurrence coordinates are at sea\n")
-  
-  # Get unique coordinates using data.table
-  unique_coords <- unique(gbif_occurrences[, .(latitude, longitude)])
-  
-  # Apply processing to all coordinates using data.table's := operator
-  processed_list <- lapply(1:nrow(unique_coords), function(i) {
-    process_coords(unique_coords$latitude[i], unique_coords$longitude[i])
-  })
-  
-  # Combine results using rbindlist
-  results <- data.table::rbindlist(processed_list, fill = TRUE)
-  unique_coords <- cbind(unique_coords, results)
-  
-  # Report statistics
-  moved_count <- sum(!is.na(unique_coords$dist_moved) & unique_coords$dist_moved > 0)
-  failed_count <- sum(is.na(unique_coords$dist_moved))
-  
-  #cat(moved_count, "of", nrow(unique_coords), "coordinate pairs were moved to sea.\n")
-  if (failed_count > 0) {
-    #cat("Moving to sea failed for", failed_count, "coordinate pairs\n")
-    message("Species ", species, ": moving to sea failed for ", failed_count, " coordinate pairs.")
+  unique_coords <- unique(gbif_occurrences[c("latitude", "longitude")])
+  unique_coords$latitude_moved <- NA
+  unique_coords$longitude_moved <- NA
+  unique_coords$dist_moved <- NA
+  counter_moved <- 0
+  counter_failed <- 0
+  for (i in 1:nrow(unique_coords)) {
+    if (is_on_land(unique_coords$latitude[i], unique_coords$longitude[i])) {
+      moved <- move_to_sea(unique_coords$latitude[i], unique_coords$longitude[i])
+      if (!is.null(moved)) {
+        counter_moved <- counter_moved + 1
+        unique_coords$latitude_moved[i] <-moved$coords[2]
+        unique_coords$longitude_moved[i] <- moved$coords[1]
+        unique_coords$dist_moved[i] <- round((moved$dist/1000), 2)
+      }
+      else {
+        counter_failed <- counter_failed + 1
+      }
+    }
+  }
+  cat(counter_moved, "of", nrow(unique_coords), "coordinate pairs were moved to sea.\n")
+  if (counter_failed != 0) {
+    #cat("Moving to sea failed for", counter_failed, "coordinate pairs\n")
+    message("Species ", species, ": moving to sea failed for ", counter_failed, " coordinate pairs.")
   }
   
-  # Process locations and calculate distances
-  unique_coords <- process_species_locations(
-    species = species,
-    species_location = species_location,
-    location_coordinates = location_coordinates,
-    unique_coords = unique_coords,
-    r = r,
-    cost_matrix = cost_matrix
-  )
-  # Convert to data.table if not already
-  if (!data.table::is.data.table(unique_coords)) {
-    data.table::setDT(unique_coords)
+  for (location in colnames(species_location[,-1])) {
+    # Skip locations where the species hasn't been detected, determined by a read number cutoff (default 1 read).
+    # Ideally, data from multiple marker genes should have been compiled into a single presence/absence table before, so there should only be 1 or 0.
+    if (species_location[which(species_location[,1] == species), location] < 1) {
+      next
+    }
+    
+    # Get coordinates for the location of observation
+    latitude <- as.numeric(gsub(",", ".", location_coordinates[which(location_coordinates$Observatory.ID == location), "Latitude"]))
+    longitude <- as.numeric(gsub(",", ".", location_coordinates[which(location_coordinates$Observatory.ID == location), "Longitude"]))
+    if (length(latitude) != 1 || length(longitude) != 1) {
+      message("Could not retrieve coordinates for location \"", location, "\"")
+      next
+    }
+    
+    # Run the distance calculations
+    cat(">>> [DIST] Calculating distances to", species, "occurrences from", location, "\n")
+    result <- calculate.distances(data = unique_coords,
+                                  latitude = latitude,
+                                  longitude = longitude,
+                                  raster_map = r,
+                                  cost_matrix = cost_matrix)
+    
+    if (!(is.null(result$seaway) & is.null(result$geodesic))) {
+      unique_coords[,paste0(location, "_seaway")] <- result$sea_distances
+      unique_coords[,paste0(location, "_geodesic")] <- result$geodesic_distances
+    } else {
+      unique_coords[,paste0(location, "_seaway")] <- NA
+      unique_coords[,paste0(location, "_geodesic")] <- NA
+    }
+    if (!is.null(result$error_messages)) {
+      message("Errors in calculation for species: ", species, "\n")
+      for (error in result$error_messages) {
+        message(error)
+      }
+    }
   }
-  
-  # Joining using data.table merge
-  gbif_occurrences <- unique_coords[gbif_occurrences, 
-                                  on = c("latitude", "longitude"),
-                                  nomatch = NA]
-  
-  # Save to csv file using fwrite
-  data.table::fwrite(gbif_occurrences, file = gbif_file)
+  # Joining gbif_occurrences df & unique_coords df together
+  gbif_occurrences <- gbif_occurrences %>%
+    dplyr::left_join(unique_coords, by = c("latitude", "longitude"))
+
+    # Save to csv file
+  write.csv(gbif_occurrences, file = gbif_occurrences_file, row.names = FALSE)
   cat("\n")
   return(TRUE)  # To avoid printing NULL in stdout
 }
 
-cat(">>> [DONE] Finished calculating distances for all species. \n")
-
-dist_end <- Sys.time()
-dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
+cat(">>> [DONE] Finished calculating distances for all species.")
 
 # Close the cluster   (place in comments for use on Windows OS)
 # stopCluster(cluster)
@@ -283,49 +267,25 @@ dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
 ## Plotting ##
 ##############
 
-plot_start <- Sys.time()
-
-# Iterate over species names in the species_location variable
-for (i in seq_len(nrow(species_location))) {
-  # Extract species name safely (same as first loop)
-  if (is.data.frame(species_location) || is.matrix(species_location)) {
-    species <- as.character(species_location[i, 1])
-  } else if (is.list(species_location)) {
-    species <- as.character(species_location[[1]][i])
-  } else {
-    species <- as.character(species_location[i])
-  }
-  
-  # Remove any potential list structure
-  if (is.list(species)) {
-    species <- unlist(species, use.names = FALSE)[1]
-  }
-  
-  # Skip if invalid species name
-  if (length(species) == 0 || is.na(species) || nchar(trimws(species)) == 0) {
-    warning(sprintf("Invalid or missing species name at index %d", i))
-    next
-  }
-  
-  safe_name <- gsub(" ", "_", species)  # Change spaces to underscores for filenames
-  species_dir <- file.path(output_dir, safe_name)
-  gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
-  
-  # If the file exists, execute following lines
-  if (file.exists(gbif_file)) {
-    # Read the species csv using the correct filename
-    distance_df <- read.csv(gbif_file)
+#Iterate over species names in the species_location variable
+for (species in species_location[,1]) {
+  species_ <- gsub(" ", "_", species) #Change the space to a "_" to make sure the species file is found
+  species_dir <- file.path(output_dir, species_) #Put the species filename in a variable
+  #If the file exist execute following lines
+  if (file.exists(file.path(species_dir, paste0(species_, ".csv")))) {
+    #Read the species csv
+    distance_df <- read.csv(file.path(species_dir, paste0(species_, ".csv")))
     #Change the format to a long format with pivot function
-    long_df <- distance_df |>
+    long_df <- distance_df %>%
       pivot_longer(
         cols = contains("_seaway") | contains("_geodesic"), #Select all columns with _seaway and _geodesic
         names_to = "location", #Change name of original columns (cols) to location column
         values_to = "x" #Put values (distances) in a column called x
-      )|>
+      )%>%
       separate(location, into = c("location", "DistanceType"), sep = "_") #separate the location column into location where the location represents a ARMS location and the DistanceType the type of distance
-    long_sea <- long_df |>
+    long_sea <- long_df %>%
       filter(grepl("seaway", DistanceType)) #Put all data of seaway into a dataframe
-    long_geo <- long_df |>
+    long_geo <- long_df %>%
       filter(grepl("geodesic", DistanceType)) #Put all data of geodesic into dataframe
     
   } else {
@@ -341,7 +301,7 @@ for (i in seq_len(nrow(species_location))) {
   long_geo$year_category <- sapply(long_sea$year, assign_year_category)
   
   # clean dataframe from rows with Inf and NA in them
-  long_sea <- long_sea |>
+  long_sea <- long_sea %>%
     filter(!is.na(x), is.finite(x))
   
   #Make a graph of all locations where that species is found
@@ -385,14 +345,3 @@ for (i in seq_len(nrow(species_location))) {
     )
   }
 }
-
-plot_end <- Sys.time()
-plot_time <- as.numeric(difftime(plot_end, plot_start, units = "secs"))
-cat(">>> [DONE] Finished plotting for all species.\n")
-
-end_time <- Sys.time()
-total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
-
-cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
-cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
-cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
