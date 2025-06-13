@@ -213,7 +213,17 @@ for (species in species_vec) {
   # Ensure gbif_occurrences is a data.table (single call, no repeated checks)
   data.table::setDT(gbif_occurrences)
   
-  # Process coordinates to ensure they're at sea
+  # Determine which locations still need distance computation
+  species_row <- species_location[Specieslist == species]
+  presence_vals <- as.numeric(species_row[, -1])
+  detected_locs <- names(species_row)[-1][!is.na(presence_vals) & presence_vals >= 1]
+
+  existing_dist_cols <- grep("(_seaway|_geodesic)$", names(gbif_occurrences), value = TRUE)
+  processed_locs <- unique(sub("_(seaway|geodesic)$", "", existing_dist_cols))
+
+  missing_locs <- setdiff(detected_locs, processed_locs)
+
+  # Coordinate preprocessing (move to sea) – always ensure lat/lon moved columns exist
   #cat(">>> [GBIF] Ensuring GBIF occurrence coordinates are at sea\n")
   
   # Get unique coordinates using data.table
@@ -228,6 +238,14 @@ for (species in species_vec) {
   results <- data.table::rbindlist(processed_list, fill = TRUE)
   unique_coords <- cbind(unique_coords, results)
   
+  # Drop duplicated column names that may arise from earlier cbind operations
+  dup_uc <- duplicated(names(unique_coords))
+  if (any(dup_uc)) {
+    warning("Removing duplicated columns from unique_coords: ",
+            paste(names(unique_coords)[dup_uc], collapse = ", "))
+    unique_coords <- unique_coords[, !dup_uc, with = FALSE]
+  }
+  
   # Report statistics
   moved_count <- sum(!is.na(unique_coords$dist_moved) & unique_coords$dist_moved > 0)
   failed_count <- sum(is.na(unique_coords$dist_moved))
@@ -238,24 +256,34 @@ for (species in species_vec) {
     message("Species ", species, ": moving to sea failed for ", failed_count, " coordinate pairs.")
   }
   
-  # Process locations and calculate distances
-  unique_coords <- process_species_locations(
-    species = species,
-    species_location = species_location,
-    location_coordinates = location_coordinates,
-    unique_coords = unique_coords,
-    r = r,
-    cost_matrix = cost_matrix
-  )
-  # Convert to data.table if not already
-  if (!data.table::is.data.table(unique_coords)) {
-    data.table::setDT(unique_coords)
+  # Process locations and calculate distances only for missing_locs
+  if (length(missing_locs) > 0) {
+    unique_coords <- process_species_locations(
+      species = species,
+      species_location = species_location,
+      location_coordinates = location_coordinates,
+      unique_coords = unique_coords,
+      r = r,
+      cost_matrix = cost_matrix,
+      locations_to_process = missing_locs
+    )
   }
   
-  # Joining using data.table merge
-  gbif_occurrences <- unique_coords[gbif_occurrences, 
-                                  on = c("latitude", "longitude"),
-                                  nomatch = NA]
+  # Update-join: fill only missing values or add new columns without creating duplicates
+  key_cols <- c("latitude", "longitude")
+  cols_uc  <- setdiff(names(unique_coords), key_cols)
+
+  for (col in cols_uc) {
+    if (col %in% names(gbif_occurrences)) {
+      # Column exists – fill NAs only
+      gbif_occurrences[unique_coords, on = .(latitude, longitude),
+                       (col) := data.table::fifelse(is.na(get(col)), get(paste0("i.", col)), get(col))]
+    } else {
+      # Column missing – bring it over entirely
+      gbif_occurrences[unique_coords, on = .(latitude, longitude),
+                       (col) := get(paste0("i.", col))]
+    }
+  }
   
   # Save to csv file using fwrite
   data.table::fwrite(gbif_occurrences, file = gbif_file)
@@ -292,6 +320,12 @@ for (species in species_vec) {
     
     # Identify distance columns
     dist_cols <- grep("(_seaway|_geodesic)$", names(distance_dt), value = TRUE)
+    
+    # Skip plotting if no distance columns present
+    if (length(dist_cols) == 0) {
+      warning(sprintf("No distance columns found (seaway/geodesic) for species '%s'. Skipping.", species))
+      next
+    }
 
     # ensure all distance columns are numeric before melt
     distance_dt[ , (dist_cols) := lapply(.SD, as.numeric), .SDcols = dist_cols]
@@ -328,7 +362,7 @@ for (species in species_vec) {
   #Make a graph of all locations where that species is found
   country_final_plot <- country.final(
     species = species,
-    distances = long_sea$x,
+    data    = long_sea,
     output_dir = species_dir)
   
   #Make a for loop that goes over every occurence location to make seperate graphs
@@ -342,28 +376,28 @@ for (species in species_vec) {
     plot_dist_sea <- plot.dist.sea(
       species = species,
       location = loc,
-      distances = sea_loc_data$x,
+      data     = sea_loc_data,
       output_dir = species_dir
     )
     
     plot_both <- plot.dist.both(
       species = species,
       location = loc,
-      distances = combined_distances$x,
+      data     = combined_distances,
       output_dir = species_dir
     )
     
     plot_country <- plot.dist.by.country(
       species = species,
       location = loc,
-      distances = sea_loc_data$x,
+      data     = sea_loc_data,
       output_dir = species_dir
     )
     
     plot_year <- plot.dist.by.year(
       species = species,
       location = loc,
-      distances = sea_loc_data$x,
+      data     = sea_loc_data,
       output_dir = species_dir
     )
   }

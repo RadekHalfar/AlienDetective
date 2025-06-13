@@ -183,7 +183,7 @@ for (species in species_location[,1]) {
       return(NULL)
     }
   }
-  
+
   #cat(">>> [GBIF] Ensuring GBIF occurrence coordinates are at sea\n")
   unique_coords <- unique(gbif_occurrences[c("latitude", "longitude")])
   unique_coords$latitude_moved <- NA
@@ -210,7 +210,7 @@ for (species in species_location[,1]) {
     #cat("Moving to sea failed for", counter_failed, "coordinate pairs\n")
     message("Species ", species, ": moving to sea failed for ", counter_failed, " coordinate pairs.")
   }
-  
+
   for (location in colnames(species_location[,-1])) {
     # Skip locations where the species hasn't been detected, determined by a read number cutoff (default 1 read).
     # Ideally, data from multiple marker genes should have been compiled into a single presence/absence table before, so there should only be 1 or 0.
@@ -248,6 +248,7 @@ for (species in species_location[,1]) {
       }
     }
   }
+  
   # Joining gbif_occurrences df & unique_coords df together
   gbif_occurrences <- gbif_occurrences %>%
     dplyr::left_join(unique_coords, by = c("latitude", "longitude"))
@@ -345,3 +346,5 @@ for (species in species_location[,1]) {
     )
   }
 }
+
+cat(">>> [DONE] All species processed\n")

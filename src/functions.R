@@ -165,117 +165,50 @@ move_to_sea <- function(lat, lon) {
 
 
 # Main function: calculates both sea route and geodesic distances from every downloaded GBIF occurrence to the species occurrence in question
-calculate.distances <- function(data, latitude, longitude, raster_map, cost_matrix) {
-  # Input validation
-  if (is.null(data)) {
-    return(list(sea_distances = NULL, 
-                geodesic_distances = NULL, 
-                error_messages = "Input table is NULL"))
-  }
-  if (nrow(data) < 1) {
-    return(list(sea_distances = NULL, 
-                geodesic_distances = NULL, 
-                error_messages = "Input table has no entries"))
-  }
+calculate.distances <- function(data, latitude, longitude, raster_map, cost_matrix){
   
-  # Ensure data is a data.table (no copy)
-  data.table::setDT(data)
+  if (is.null(data)) return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = "Input table is NULL"))
+  if (nrow(data) < 1) return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = "Input table is has no entries"))
   
   tryCatch({
     # Specify the PROJ4 string for WGS84
     proj4_crs <- sp::CRS("+init=EPSG:4326")
     
-    # Work directly on the incoming table
-    coords_dt <- data
+    # Create SpatialPoints objects from the coordinates
+    query_point <- sp::SpatialPoints(cbind(longitude, latitude), proj4string = proj4_crs)
+    ref_points <- sp::SpatialPoints(cbind(ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved),
+                                          ifelse(is.na(data$latitude_moved), data$latitude, data$latitude_moved)),
+                                    proj4string = proj4_crs)
     
-    # Check if the required columns exist
-    if (!all(c("longitude", "latitude") %in% names(coords_dt))) {
-      return(list(sea_distances = NULL, 
-                 geodesic_distances = NULL, 
-                 error_messages = "Missing required longitude/latitude columns"))
-    }
     
-    # Handle missing moved coordinates
-    if (!"longitude_moved" %in% names(coords_dt)) {
-      coords_dt[, longitude_moved := NA_real_]
-    }
-    if (!"latitude_moved" %in% names(coords_dt)) {
-      coords_dt[, latitude_moved := NA_real_]
-    }
-    
-    # Update coordinates
-    coords_dt[, `:=`(
-      x_coord = data.table::fifelse(is.na(longitude_moved), longitude, longitude_moved),
-      y_coord = data.table::fifelse(is.na(latitude_moved), latitude, latitude_moved)
-    )]
-    
-    # Create SpatialPoints objects
-    query_point <- sp::SpatialPoints(
-      cbind(longitude, latitude), 
-      proj4string = proj4_crs
-    )
-    
-    ref_points <- sp::SpatialPoints(
-      coords_dt[, .(x_coord, y_coord)],
-      proj4string = proj4_crs
-    )
-    
-    # Get raster cell values (1 for sea, NA for land)
+    # Get raster cell values of the GBIF occurrence points (1 for sea, Inf for land)
     cell_values <- raster::extract(raster_map, ref_points)
-    
-    # Initialize result vectors with NAs
-    n_points <- nrow(coords_dt)
-    sea_distances <- rep(NA_real_, n_points)
-    geodesic_distances <- rep(NA_real_, n_points)
-    
-    # Process points that are in the sea
-    sea_indexes <- which(cell_values == 1L)
-    
-    if (length(sea_indexes) > 0) {
-      ref_points_sea <- ref_points[sea_indexes, ]
-      
-      # Calculate sea distances (vectorized)
-      sea_distances[sea_indexes] <- as.numeric(
-        gdistance::costDistance(cost_matrix, query_point, ref_points_sea)[1,]
-      )
-      
-      # Calculate geodesic distances (vectorized)
-      query_coords <- sp::coordinates(query_point)
-      sea_coords <- sp::coordinates(ref_points_sea)
-      
-      geodesic_distances[sea_indexes] <- as.numeric(
-        geodist::geodist(
-          x1 = query_coords[1, 1], y1 = query_coords[1, 2],
-          x2 = sea_coords[, 1], y2 = sea_coords[, 2],
-          measure = "geodesic"
-        )
-      )
-      
-      # Convert distances to kilometers and round
+    # Initialize result vectors
+    sea_distances <- rep(NA_real_, length(cell_values))
+    geodesic_distances <- rep(NA_real_, length(cell_values))
+    # Get indexes of the points that are in the sea
+    indexes <- which(cell_values == 1L)
+    if (length(indexes) > 0) {
+      # Subset points that are in the sea
+      ref_points_sea <- ref_points[indexes,]
+      # Vectorized sea distance calculation to all GBIF occurrences in the sea
+      sea_distances[indexes] <- as.numeric(gdistance::costDistance(cost_matrix, query_point, ref_points_sea)[1,])
+      # Convert points to simple table format for use with geodist
+      query_point_table <- data.frame(lon = sp::coordinates(query_point)[,1],
+                                      lat = sp::coordinates(query_point)[,2])
+      ref_points_sea_table <- data.frame(lon = sp::coordinates(ref_points_sea)[,1],
+                                         lat = sp::coordinates(ref_points_sea)[,2])
+      # Vecotrized geodesic distance calculation to all GBIF occurrences in the sea
+      geodesic_distances[indexes] <- as.numeric(geodist::geodist(query_point_table, ref_points_sea_table, measure = "geodesic"))
+      # Convert distances to kilometres
       sea_distances <- round(sea_distances / 1000, 0)
       geodesic_distances <- round(geodesic_distances / 1000, 0)
     }
-    
-    # Return results
-    return(list(
-      sea_distances = sea_distances,
-      geodesic_distances = geodesic_distances,
-      error_messages = NULL
-    ))
-    
+    # Return result
+    return(list(sea_distances = sea_distances, geodesic_distances = geodesic_distances, error_messages = NULL))
   }, error = function(e) {
-    # Error handling
-    error_msg <- paste0(
-      "Error in calculate.distances: ",
-      conditionMessage(e), "\n",
-      "Call: ", deparse(conditionCall(e))
-    )
-    
-    return(list(
-      sea_distances = NULL,
-      geodesic_distances = NULL,
-      error_messages = error_msg
-    ))
+    error_messages <- paste0("An error occurred during distance calculation for ", species, " in ", location, ": ", e$message)
+    return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = error_messages))
   })
 }
 
@@ -285,172 +218,104 @@ calculate.distances <- function(data, latitude, longitude, raster_map, cost_matr
 ### PLOTTING FUNCTIONS ###
 ##########################
 
-country.final <- function(species, distances, output_dir) {
-  #hist_info <- hist(long_sea$x, plot = FALSE)
-  #max_count <- max(hist_info$counts)
-  max_x <- max(long_sea$x)
-  plot <- ggplot(long_sea, aes(x = x, fill = location)) +
-    geom_histogram(binwidth = 50, boundary = 0, position = "stack") + # adjust the binwidth to personal preference
-    labs(title = paste0("Frequencies of Sea distances for ", species," from all ARMS locations" ),
-         x = "Sea distance in km", y = "Frequency of species") +
-    theme_bw() +
-    #scale_fill_brewer(palette = "Set1") +  # You can choose a different palette if you like
-    theme(plot.title = element_text(hjust = 0.5, size = 12, face = "bold"), # set title font size, placement
-          plot.margin = margin(0.3, 0.3, 0.4, 0.4, "cm"),
-          axis.text = element_text(size = 10),           # Set font size for axis numbers
-          axis.title = element_text(size = 20),
-          legend.title = element_text(size = 14),   # Increase legend title size
-          legend.text = element_text(size = 12),    # Increase legend text size
-          legend.key.size = unit(1.5, "lines")) +   # Increase legend key size
-    scale_x_continuous(breaks = seq(0, max_x*1.1, by = 250), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0, 0)) +
-    coord_cartesian(xlim = c(0, max_x*1.1)) # Use coord_cartesian for setting limits
-  
-  if(!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
+# Generic helper --------------------------------------------------------------
+make_hist_plot <- function(data,
+                           x_col,
+                           fill_col = NULL,
+                           title = "",
+                           binwidth = 50,
+                           breaks_by = 250,
+                           x_label = "Distance (km)",
+                           y_label = "Frequency") {
+  stopifnot(is.data.frame(data), x_col %in% names(data))
+
+  max_x <- max(data[[x_col]], na.rm = TRUE)
+
+  # Dynamically build aesthetic mapping
+  mapping <- ggplot2::aes_string(x = x_col)
+  if (!is.null(fill_col)) {
+    mapping <- ggplot2::aes_string(x = x_col, fill = fill_col)
   }
-  ggsave(filename = file.path(output_dir, paste0(gsub(" ", "_", species), "_from_all_ARMS_locations", ".png")), 
-         plot = plot, width = 2400, height = 1200, units = "px", dpi = 300)
-  return(plot)
+
+  ggplot2::ggplot(data, mapping) +
+    ggplot2::geom_histogram(binwidth = binwidth, boundary = 0, alpha = 0.7,
+                            position = "stack", colour = "#e9ecef") +
+    ggplot2::labs(title = title, x = x_label, y = y_label, fill = fill_col) +
+    ggplot2::theme_bw(base_size = 12) +
+    ggplot2::scale_x_continuous(breaks = seq(0, max_x * 1.1, by = breaks_by),
+                                expand = c(0, 0)) +
+    ggplot2::scale_y_continuous(expand = c(0, 0)) +
+    ggplot2::coord_cartesian(xlim = c(0, max_x * 1.1))
 }
 
-# Make histogram of sea distances
-plot.dist.sea <- function(species, location, distances, output_dir) {
-  hist_info <- hist(sea_loc_data$x, plot = FALSE)
-  max_count <- max(hist_info$counts)
-  max_x <- max(sea_loc_data$x)
-  # make histograms of distances per species, with filtering on distance limit 40000
-  plot <- ggplot(sea_loc_data, aes(x = x, fill = location)) +
-    geom_histogram(binwidth = 50, boundary = 0, position = "stack", alpha = 0.7) +  # default is position = "stack"
-    labs(title = paste("Distances for", species), x = "Distance (km)", y = "Count") +
-    theme_minimal()+
-    #scale_fill_brewer(palette = "Set1") +
-    ggtitle(paste0("Distribution of ", species, " from", loc)) +
-    theme(plot.title = element_text(hjust = 0.5, size = 20, face = "bold"), # set title font size, placement with hjust
-          plot.margin = margin(0.3, 0.3, 0.4, 0.4, "cm"),
-          axis.text = element_text(size = 10),           # Set font size for axis numbers
-          axis.title = element_text(size = 20)) +         # Set font size for axis titles
-    scale_x_continuous(breaks = seq(0, max_x*1.1, by = 250), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0, 0)) +
-    coord_cartesian(xlim = c(0, max_x*1.1), ylim = c(0,max_count*1.1))
-  
-  
-  if(!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  ggsave(filename = file.path(output_dir, paste0(gsub(" ", "_", species), "_from_", location, ".png")), 
-         plot = plot, width = 2000, height = 1200, units = "px", dpi = 300)
-  return(plot)
+# -----------------------------------------------------------------------------
+# Plot wrappers (all rely on make_hist_plot) ----------------------------------
+# -----------------------------------------------------------------------------
+
+country.final <- function(species, data, output_dir) {
+  plot <- make_hist_plot(
+    data      = data,
+    x_col     = "x",
+    fill_col  = "location",
+    title     = sprintf("Sea-route distances for %s (all ARMS locations)", species)
+  )
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  ggplot2::ggsave(file.path(output_dir, sprintf("%s_from_all_ARMS_locations.png", gsub(" ", "_", species))),
+                  plot, width = 2400, height = 1200, units = "px", dpi = 300)
+  invisible(plot)
 }
 
-# Make combined histogram of sea distances and fly distances
-plot.dist.both <- function(species, location, distances, output_dir) {
-  combined_distances <- rbind(sea_loc_data, geo_loc_data)
-  hist_info <- hist(combined_distances$x, plot = FALSE)
-  max_count <- max(hist_info$counts)
-  max_x <- max(sea_loc_data$x)
-  plot <- ggplot(combined_distances, aes(x = x, fill = DistanceType)) +
-    geom_histogram(binwidth = 50, color="#e9ecef", alpha=0.6, position = 'identity') +
-    theme_bw() +
-    #scale_fill_brewer(palette = "Set1") +
-    labs(x = "Distance in km", y = "Frequency") +
-    ggtitle(paste0("Distribution of ", species, " from sea and fly distances")) +
-    theme(
-      plot.title = element_text(hjust = 0.5, size = 20, face = "bold"), # set title font size, placement
-      plot.margin = margin(0.3, 0.3, 0.4, 0.4, "cm"),
-      axis.text = element_text(size = 10),  # Set font size for axis numbers
-      axis.title = element_text(size = 16), # Set font size for title
-      legend.title = element_text(size = 18, face="bold"), # Settings for legend title
-      legend.text = element_text(size = 16)) +  # settings for legend text
-    scale_x_continuous(breaks = seq(0, max_x*1.1, by = 250), expand = c(0, 0)) +  # settings for x axis
-    scale_y_continuous(expand = c(0, 0)) +
-    # used expand to make sure the axes are on the lines of the axes and not above them floating
-    coord_cartesian(xlim = c(0, max_x*1.1), ylim = c(0,max_count*1.1)) + # Use coord_cartesian for setting limits
-    # set legend title and labels
-    labs(x = "Distance in km", y = "Frequency", fill = "DistanceType")
-  
-  if(!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  ggsave(filename = file.path(output_dir, paste0(gsub(" ", "_", species), "_from_", location, "_seadist&geodesic.png")), 
-         plot = plot, width = 2400, height = 1200, units = "px", dpi = 300)
-  return(plot)
+plot.dist.sea <- function(species, location, data, output_dir) {
+  plot <- make_hist_plot(
+    data      = data,
+    x_col     = "x",
+    title     = sprintf("Sea-route distances for %s from %s", species, location)
+  )
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  ggplot2::ggsave(file.path(output_dir, sprintf("%s_from_%s.png", gsub(" ", "_", species), location)),
+                  plot, width = 2000, height = 1200, units = "px", dpi = 300)
+  invisible(plot)
 }
 
-
-# Make histograms of locations
-plot.dist.by.country <- function(species, location, distances, output_dir) {
-  hist_info <- hist(sea_loc_data$x, plot = FALSE)
-  max_count <- max(hist_info$counts)
-  max_x <- max(sea_loc_data$x)
-  plot <- ggplot(sea_loc_data, aes(x = x, fill = country)) +
-    geom_histogram(binwidth = 50, boundary = 0, position = "stack") +  # adjust the binwidth to personal preference
-    labs(title = paste0("Frequencies of Sea distances/country for ", species," in ", location),
-         x = "Sea distance in km", y = "Frequency of species") +
-    theme_bw() +
-    #scale_fill_brewer(palette = "Set1") +  # You can choose a different palette if you like
-    theme(plot.title = element_text(hjust = 0.5, size = 20, face = "bold"), # set title font size, placement
-          plot.margin = margin(0.3, 0.3, 0.4, 0.4, "cm"),
-          axis.text = element_text(size = 10),           # Set font size for axis numbers
-          axis.title = element_text(size = 20),
-          legend.title = element_text(size = 14),   # Increase legend title size
-          legend.text = element_text(size = 12),    # Increase legend text size
-          legend.key.size = unit(1.5, "lines")) +   # Increase legend key size
-    scale_x_continuous(breaks = seq(0, max_x*1.1, by = 250), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0, 0)) +
-    coord_cartesian(xlim = c(0, max_x*1.1), ylim = c(0,max_count*1.1)) # Use coord_cartesian for setting limits
-  
-  if(!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  ggsave(filename = file.path(output_dir, paste0(gsub(" ", "_", species), "_from_", location, "_by_country.png")), 
-         plot = plot, width = 2400, height = 1200, units = "px", dpi = 300)
-  return(plot)
+plot.dist.both <- function(species, location, data, output_dir) {
+  plot <- make_hist_plot(
+    data      = data,
+    x_col     = "x",
+    fill_col  = "DistanceType",
+    title     = sprintf("Sea vs geodesic distances for %s (%s)", species, location)
+  ) + ggplot2::labs(fill = "DistanceType")
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  ggplot2::ggsave(file.path(output_dir, sprintf("%s_from_%s_seadist&geodesic.png", gsub(" ", "_", species), location)),
+                  plot, width = 2400, height = 1200, units = "px", dpi = 300)
+  invisible(plot)
 }
 
-
-# Make year categories (Used by plot.dist.by.year function)
-assign_year_category <- function(year) {
-  if (is.na(year)) {
-    return(NA)   # return NA when year is not present
-  }
-  for (category in year_categories) {
-    range <- as.numeric(unlist(strsplit(category, "-"))) # save years as numeric without "-"
-    if (year >= range[1] & year < range[2]) {  # if the year falls into this category
-      return(category) # return this category
-    }
-  }
-  return(NA) # If year doesn't fall into any category, return NA
+plot.dist.by.country <- function(species, location, data, output_dir) {
+  plot <- make_hist_plot(
+    data      = data,
+    x_col     = "x",
+    fill_col  = "country",
+    title     = sprintf("Sea-route distances by country for %s (%s)", species, location)
+  )
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  ggplot2::ggsave(file.path(output_dir, sprintf("%s_from_%s_by_country.png", gsub(" ", "_", species), location)),
+                  plot, width = 2400, height = 1200, units = "px", dpi = 300)
+  invisible(plot)
 }
 
-
-# Make histograms of year categories
-plot.dist.by.year <- function(species, location, distances, output_dir) {
-  hist_info <- hist(sea_loc_data$x, plot = FALSE)
-  max_count <- max(hist_info$counts)
-  plot <- ggplot(sea_loc_data, aes(x = x, fill = year_category)) +
-    geom_histogram(binwidth = 50, boundary = 0, position = "stack") +  # adjust the binwidth to personal preference
-    labs(title = paste0("Frequencies of Sea distances/year for ", species," in ", location),
-         x = "Sea distance in km", y = "Frequency of species") +
-    theme_bw() +
-    scale_fill_brewer(palette = "YlOrRd", na.value = "black") + # You can choose a different palette if you like
-    theme(plot.title = element_text(hjust = 0.5, size = 20, face = "bold"), # set title font size, placement
-          plot.margin = margin(0.3, 0.3, 0.4, 0.4, "cm"),
-          axis.text = element_text(size = 10),           # Set font size for axis numbers
-          axis.title = element_text(size = 20),
-          legend.title = element_text(size = 14),   # set legend title size
-          legend.text = element_text(size = 12),    # set legend text size
-          legend.key.size = unit(1.5, "lines")) +   # set legend key size
-    scale_x_continuous(breaks = seq(0, 7500, by = 250), expand = c(0, 0)) +
-    scale_y_continuous(expand = c(0, 0)) +
-    coord_cartesian(xlim = c(0, 7500), ylim = c(0,max_count*1.1)) # Use coord_cartesian for setting limits
-  
-  if(!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE)
-  }
-  ggsave(filename = file.path(output_dir, paste0(gsub(" ", "_", species), "_from_", location, "_by_year.png")), 
-         plot = plot, width = 2400, height = 1200, units = "px", dpi = 300)
-  return(plot)
+plot.dist.by.year <- function(species, location, data, output_dir) {
+  plot <- make_hist_plot(
+    data      = data,
+    x_col     = "x",
+    fill_col  = "year_category",
+    title     = sprintf("Sea-route distances by year for %s (%s)", species, location)
+  ) +
+    ggplot2::scale_fill_brewer(palette = "YlOrRd", na.value = "black") +
+    ggplot2::labs(fill = "Year")
+  if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)
+  ggplot2::ggsave(file.path(output_dir, sprintf("%s_from_%s_by_year.png", gsub(" ", "_", species), location)),
+                  plot, width = 2400, height = 1200, units = "px", dpi = 300)
+  invisible(plot)
 }
 
 # Process each coordinate pair
@@ -532,8 +397,11 @@ process_coords <- function(lat, lon) {
 }
 
 # Process species locations and calculate distances
-process_species_locations <- function(species, species_location, location_coordinates, 
-                                    unique_coords, r, cost_matrix) {
+#' Process species locations and calculate distances
+#' locations_to_process: optional character vector of location column names to compute. If NULL, process all detected locations.
+process_species_locations <- function(species, species_location, location_coordinates,
+                                      unique_coords, r, cost_matrix,
+                                      locations_to_process = NULL) {
   # Input validation
   stopifnot(
     is.character(species) && length(species) == 1,
@@ -560,15 +428,25 @@ process_species_locations <- function(species, species_location, location_coordi
   species_col <- names(species_location)[1]
   data.table::setkeyv(species_location, species_col)
   data.table::setkeyv(location_coordinates, "Observatory.ID")
-  
   # Get locations where species was detected (using data.table's fast subset)
-  detected_locations <- names(which(
-    species_location[.(species), .SD, .SDcols = -1] >= 1
-  ))
+  loc_presence <- species_location[.(species), .SD, .SDcols = -1]
   
+#  if (nrow(loc_presence) == 0) {
+#    message(sprintf("Species '%s' not found in species_location table", species))
+#    return(result_dt)
+#  }
+  
+  presence_vals <- as.numeric(loc_presence[1])
+  detected_locations <- names(loc_presence)[!is.na(presence_vals) & presence_vals >= 1]
+
   if (length(detected_locations) == 0) {
     message(sprintf("No detections found for species: %s", species))
     return(result_dt)
+  }
+  
+  # If caller supplied subset of locations, filter
+  if (!is.null(locations_to_process)) {
+    detected_locations <- intersect(detected_locations, locations_to_process)
   }
   
   # Process locations in parallel if possible
@@ -579,13 +457,12 @@ process_species_locations <- function(species, species_location, location_coordi
       message(sprintf("Could not retrieve coordinates for location: %s", loc))
       return(NULL)
     }
-    
+
     # Convert coordinates to numeric (handling comma as decimal separator)
     coords[, `:=`(
       lat = as.numeric(gsub(",", ".", Latitude)),
       lon = as.numeric(gsub(",", ".", Longitude))
     )]
-    
     # Calculate distances
     message(sprintf("Calculating distances to %s occurrences from %s", species, loc))
     
@@ -597,7 +474,6 @@ process_species_locations <- function(species, species_location, location_coordi
         raster_map = r,
         cost_matrix = cost_matrix
       )
-      
       # Return results with location prefix
       if (!is.null(result$sea_distances) && !is.null(result$geodesic_distances)) {
         data.table(
@@ -617,23 +493,35 @@ process_species_locations <- function(species, species_location, location_coordi
   # Combine results
   valid_results <- Filter(Negate(is.null), results)
   if (length(valid_results) > 0) {
-    # Combine all results
-    combined <- rbindlist(valid_results, idcol = "location_idx")
+    # Combine all results into one long table with an index per location
+    combined <- rbindlist(valid_results, idcol = "idx")
+    combined[, location := detected_locations[idx]]
     
-    # Reshape and add to result_dt
-    for (i in seq_along(valid_results)) {
-      loc <- detected_locations[i]
-      loc_data <- combined[location_idx == i]
-      
-      if (nrow(loc_data) > 0) {
-        # Ensure we have the right number of rows
-        if (nrow(loc_data) == nrow(result_dt)) {
-          set(result_dt, j = paste0(loc, "_seaway"), value = loc_data$sea)
-          set(result_dt, j = paste0(loc, "_geodesic"), value = loc_data$geo)
-        } else {
-          warning(sprintf("Mismatch in row counts for location: %s", loc))
-        }
-      }
+    # Reshape to wide format in one step (creates columns like "sea_<loc>", "geo_<loc>")
+    wide <- data.table::dcast(
+      combined,
+      id ~ location,
+      value.var = c("sea", "geo"),
+      fill = NA_real_
+    )
+    
+    # Rename columns to "<loc>_seaway" / "<loc>_geodesic"
+    new_names <- names(wide)
+    new_names <- gsub("^sea_(.*)$", "\\1_seaway", new_names)
+    new_names <- gsub("^geo_(.*)$", "\\1_geodesic", new_names)
+    data.table::setnames(wide, new_names)
+    
+    # Append reshaped columns to result_dt (drop the "id" column first)
+    result_dt <- cbind(result_dt, wide[, -1, with = FALSE])
+    
+    # Remove duplicated columns if any (can occur after reruns)
+    dup_cols <- duplicated(names(result_dt))
+    if (any(dup_cols)) {
+#      warning(sprintf(
+#        "Removing duplicated columns from result_dt: %s",
+#        paste(names(result_dt)[dup_cols], collapse = ", ")
+#      ))
+      result_dt <- result_dt[, !dup_cols, with = FALSE]
     }
   }
   
