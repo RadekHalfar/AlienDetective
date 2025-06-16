@@ -165,53 +165,57 @@ move_to_sea <- function(lat, lon) {
 
 
 # Main function: calculates both sea route and geodesic distances from every downloaded GBIF occurrence to the species occurrence in question
-calculate.distances <- function(data, latitude, longitude, raster_map, cost_matrix){
+calculate.distances <- function(data, latitude, longitude, raster_map, cost_matrix) {
   
-  if (is.null(data)) return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = "Input table is NULL"))
-  if (nrow(data) < 1) return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = "Input table is has no entries"))
+  # Validate input -----------------------------------------------------------
+  if (is.null(data) || nrow(data) == 0) {
+    return(list(sea_distances = NULL,
+                geodesic_distances = NULL,
+                error_messages = "Input table is NULL or empty"))
+  }
   
   tryCatch({
-    # Specify the PROJ4 string for WGS84
-    proj4_crs <- sp::CRS("+init=EPSG:4326")
+    # -----------------------------------------------------------------------
+    # Prepare coordinate vectors (prefer *_moved when available)
+    # -----------------------------------------------------------------------
+    x_coord <- ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved)
+    y_coord <- ifelse(is.na(data$latitude_moved),  data$latitude,  data$latitude_moved)
     
-    # Create SpatialPoints objects from the coordinates
-    query_point <- sp::SpatialPoints(cbind(longitude, latitude), proj4string = proj4_crs)
-    ref_points <- sp::SpatialPoints(cbind(ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved),
-                                          ifelse(is.na(data$latitude_moved), data$latitude, data$latitude_moved)),
-                                    proj4string = proj4_crs)
+    # Identify points that lie in the sea (raster value == 1)
+    at_sea <- raster::extract(raster_map, cbind(x_coord, y_coord)) == 1L
     
+    n <- length(x_coord)
+    sea_distances <- rep(NA_real_, n)
+    geo_distances <- rep(NA_real_, n)
     
-    # Get raster cell values of the GBIF occurrence points (1 for sea, Inf for land)
-    cell_values <- raster::extract(raster_map, ref_points)
-    # Initialize result vectors
-    sea_distances <- rep(NA_real_, length(cell_values))
-    geodesic_distances <- rep(NA_real_, length(cell_values))
-    # Get indexes of the points that are in the sea
-    indexes <- which(cell_values == 1L)
-    if (length(indexes) > 0) {
-      # Subset points that are in the sea
-      ref_points_sea <- ref_points[indexes,]
-      # Vectorized sea distance calculation to all GBIF occurrences in the sea
-      sea_distances[indexes] <- as.numeric(gdistance::costDistance(cost_matrix, query_point, ref_points_sea)[1,])
-      # Convert points to simple table format for use with geodist
-      query_point_table <- data.frame(lon = sp::coordinates(query_point)[,1],
-                                      lat = sp::coordinates(query_point)[,2])
-      ref_points_sea_table <- data.frame(lon = sp::coordinates(ref_points_sea)[,1],
-                                         lat = sp::coordinates(ref_points_sea)[,2])
-      # Vecotrized geodesic distance calculation to all GBIF occurrences in the sea
-      geodesic_distances[indexes] <- as.numeric(geodist::geodist(query_point_table, ref_points_sea_table, measure = "geodesic"))
-      # Convert distances to kilometres
-      sea_distances <- round(sea_distances / 1000, 0)
-      geodesic_distances <- round(geodesic_distances / 1000, 0)
+    if (any(at_sea)) {
+      # SpatialPoints for gdistance (needs identical CRS)
+      crs_wgs84 <- sp::CRS("+proj=longlat +datum=WGS84")
+      query_pt  <- sp::SpatialPoints(cbind(longitude, latitude), proj4string = crs_wgs84)
+      sea_pts   <- sp::SpatialPoints(cbind(x_coord[at_sea], y_coord[at_sea]), proj4string = crs_wgs84)
+      
+      # Sea-route distances (in km)
+      sea_distances[at_sea] <- as.numeric(gdistance::costDistance(cost_matrix, query_pt, sea_pts)) / 1000
+      
+      # Geodesic distances (in km) – build proper lon/lat data.frames to avoid column-name warnings
+      origin_df <- data.table::data.table(lon = longitude, lat = latitude)
+      dest_df   <- data.table::data.table(lon = x_coord[at_sea], lat = y_coord[at_sea])
+      geo_distances[at_sea] <- as.numeric(
+        geodist::geodist(origin_df, dest_df, measure = "geodesic")
+      ) / 1000
     }
-    # Return result
-    return(list(sea_distances = sea_distances, geodesic_distances = geodesic_distances, error_messages = NULL))
+    
+    # Round to whole kilometres for consistency
+    return(list(sea_distances       = round(sea_distances, 0),
+                geodesic_distances = round(geo_distances, 0),
+                error_messages     = NULL))
+    
   }, error = function(e) {
-    error_messages <- paste0("An error occurred during distance calculation for ", species, " in ", location, ": ", e$message)
-    return(list(sea_distances = NULL, geodesic_distances = NULL, error_messages = error_messages))
+    return(list(sea_distances       = NULL,
+                geodesic_distances = NULL,
+                error_messages     = paste("calculate.distances error:", e$message)))
   })
 }
-
 
 
 ##########################
@@ -231,6 +235,12 @@ make_hist_plot <- function(data,
 
   max_x <- max(data[[x_col]], na.rm = TRUE)
 
+  # Derive maximum bin count for y-axis scaling
+  # Use the same binwidth as geom_histogram so the limit is accurate.
+  hist_breaks <- seq(0, max_x * 1.1, by = binwidth)
+  #max_count <- max(stats::hist(data[[x_col]], breaks = hist_breaks, plot = FALSE)$counts, na.rm = TRUE)
+  max_count <- max(hist(data[[x_col]], breaks = hist_breaks, plot = FALSE)$counts, na.rm = TRUE)
+
   # Dynamically build aesthetic mapping
   mapping <- ggplot2::aes_string(x = x_col)
   if (!is.null(fill_col)) {
@@ -245,7 +255,7 @@ make_hist_plot <- function(data,
     ggplot2::scale_x_continuous(breaks = seq(0, max_x * 1.1, by = breaks_by),
                                 expand = c(0, 0)) +
     ggplot2::scale_y_continuous(expand = c(0, 0)) +
-    ggplot2::coord_cartesian(xlim = c(0, max_x * 1.1))
+    ggplot2::coord_cartesian(xlim = c(0, max_x * 1.1), ylim = c(0, max_count * 1.1))
 }
 
 # -----------------------------------------------------------------------------

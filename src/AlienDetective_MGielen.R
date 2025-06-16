@@ -9,6 +9,8 @@ rm(list = ls())
 ### SETUP ###
 #############
 
+setup_start <- Sys.time()
+
 # Define number of cores  (place in comments for use on Windows OS)
 # num_cores <- 4
 # if (!is.numeric(num_cores) || num_cores <= 0 || num_cores != floor(num_cores)) {
@@ -151,9 +153,13 @@ for (i in 1:nrow(location_coordinates)) {
 }
 #cat(">>> [DONE] All coordinates updated to nearest sea point\n")
 
+setup_end <- Sys.time()
+setup_time <- as.numeric(difftime(setup_end, setup_start, units = "secs"))
+
 #############################
 ### DISTANCES CALCULATION ###
 #############################
+dist_start <- Sys.time()
 
 # For non-parallel execution -> use "for" loop
 # For parallel execution -> use "foreach" loop + parallel setup
@@ -261,12 +267,17 @@ for (species in species_location[,1]) {
 
 cat(">>> [DONE] Finished calculating distances for all species.")
 
+dist_end <- Sys.time()
+dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
+
 # Close the cluster   (place in comments for use on Windows OS)
 # stopCluster(cluster)
 
 ##############
 ## Plotting ##
 ##############
+
+plot_start <- Sys.time()
 
 #Iterate over species names in the species_location variable
 for (species in species_location[,1]) {
@@ -347,4 +358,14 @@ for (species in species_location[,1]) {
   }
 }
 
-cat(">>> [DONE] All species processed\n")
+plot_end <- Sys.time()
+plot_time <- as.numeric(difftime(plot_end, plot_start, units = "secs"))
+cat(">>> [DONE] Finished plotting for all species.\n")
+
+end_time <- Sys.time()
+total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
+
+cat(">>> [TIMING] Setup completed in", round(setup_time, 2), "seconds.\n")
+cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
+cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
+cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")

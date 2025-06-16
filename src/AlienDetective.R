@@ -90,8 +90,8 @@ data.table::setkey(location_coordinates, "Observatory.ID")
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
 # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-species_subset <- c("Aurelia solida")
-species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
+#species_subset <- c("Aurelia solida")
+#species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
 #species_location <- species_location[c(2, 10, 57),] # Or subset a few species to try at random
 
 # Create a simple character vector of species names for easy iteration
@@ -169,6 +169,9 @@ for (i in 1:nrow(location_coordinates)) {
   #cat("\n")
 }
 #cat(">>> [DONE] All coordinates updated to nearest sea point\n")
+
+setup_end <- Sys.time()
+setup_time <- as.numeric(difftime(setup_end, setup_start, units = "secs"))
 
 #############################
 ### DISTANCES CALCULATION ###
@@ -410,6 +413,7 @@ cat(">>> [DONE] Finished plotting for all species.\n")
 end_time <- Sys.time()
 total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
 
+cat(">>> [TIMING] Setup completed in", round(setup_time, 2), "seconds.\n")
 cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
 cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
 cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
