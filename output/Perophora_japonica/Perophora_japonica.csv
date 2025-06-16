@@ -1,0 +1,383 @@
+latitude,longitude,year,month,country,basisOfRecord
+43.421291,4.921123,2022,3,France,HUMAN_OBSERVATION
+43.422662,4.917733,2022,3,France,HUMAN_OBSERVATION
+44.62848,-1.24306,2021,7,France,HUMAN_OBSERVATION
+47.28644,-2.52363,2023,8,France,HUMAN_OBSERVATION
+47.29383,-2.54824,2022,7,France,HUMAN_OBSERVATION
+47.36425,-2.53168,2022,6,France,HUMAN_OBSERVATION
+47.36521,-2.53153,2022,5,France,HUMAN_OBSERVATION
+47.38697,-2.529831,2024,9,France,HUMAN_OBSERVATION
+47.40833,-2.62361,2014,9,France,HUMAN_OBSERVATION
+47.40972,-2.61861,2014,6,France,HUMAN_OBSERVATION
+47.41056,-2.61694,2014,9,France,HUMAN_OBSERVATION
+47.41167,-2.62806,2014,6,France,HUMAN_OBSERVATION
+47.41417,-2.6225,2014,9,France,HUMAN_OBSERVATION
+47.487381,-3.101542,2022,9,France,HUMAN_OBSERVATION
+47.487381,-3.101542,2022,9,France,HUMAN_OBSERVATION
+47.487381,-3.101542,2022,9,France,HUMAN_OBSERVATION
+47.56904,-2.90619,2014,5,France,HUMAN_OBSERVATION
+47.656694,-3.209949,2020,8,France,HUMAN_OBSERVATION
+47.6714,-3.2083,2017,4,France,HUMAN_OBSERVATION
+47.6714,-3.2083,2016,6,France,HUMAN_OBSERVATION
+47.6714,-3.2083,2016,6,France,HUMAN_OBSERVATION
+47.70241,-3.38338,2020,9,France,HUMAN_OBSERVATION
+47.80663,-3.71601,2018,6,France,HUMAN_OBSERVATION
+47.80708,-3.71284,2018,6,France,HUMAN_OBSERVATION
+48.30466,-4.64344,2022,7,France,HUMAN_OBSERVATION
+48.32548,-4.39306,2021,8,France,HUMAN_OBSERVATION
+48.568796,-1.979144,2023,5,France,HUMAN_OBSERVATION
+48.57014,-1.97771,2020,8,France,HUMAN_OBSERVATION
+48.57114,-1.98165,2022,2,France,HUMAN_OBSERVATION
+48.57114,-1.98165,2021,9,France,HUMAN_OBSERVATION
+48.57114,-1.98165,2021,10,France,HUMAN_OBSERVATION
+48.57116,-1.98165,2020,8,France,HUMAN_OBSERVATION
+48.57116,-1.98165,2020,8,France,HUMAN_OBSERVATION
+48.57116,-1.98165,2020,9,France,HUMAN_OBSERVATION
+48.57116,-1.98165,2020,10,France,HUMAN_OBSERVATION
+48.57123,-1.98367,2021,9,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2022,2,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2021,2,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2021,2,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2021,5,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2021,7,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2021,8,France,HUMAN_OBSERVATION
+48.59619,-2.01798,2020,10,France,HUMAN_OBSERVATION
+48.60343,-2.02022,2022,7,France,HUMAN_OBSERVATION
+48.62806,-2.02806,2020,7,France,HUMAN_OBSERVATION
+48.6373,-2.0217,2021,6,France,HUMAN_OBSERVATION
+48.63767,-2.02248,2021,6,France,HUMAN_OBSERVATION
+48.639871,-2.246114,2025,4,France,HUMAN_OBSERVATION
+48.639935,-2.246243,2025,4,France,HUMAN_OBSERVATION
+48.65528,-2.13955,2020,7,France,HUMAN_OBSERVATION
+48.66203,-2.27538,2017,7,France,HUMAN_OBSERVATION
+48.670151,-4.469221,2019,8,France,HUMAN_OBSERVATION
+48.67159,-1.98617,2021,11,France,HUMAN_OBSERVATION
+48.68,-2.071,2021,9,France,HUMAN_OBSERVATION
+48.68244,-1.98737,2021,7,France,HUMAN_OBSERVATION
+48.68324,-2.0437,2020,7,France,HUMAN_OBSERVATION
+48.68674,-1.96029,2021,3,France,HUMAN_OBSERVATION
+48.71751,-3.96649,2019,,France,OCCURRENCE
+48.71751,-3.96649,2019,,France,OCCURRENCE
+48.71751,-3.96649,2018,,France,OCCURRENCE
+48.78329,-3.583153,2022,7,France,HUMAN_OBSERVATION
+48.79089,-3.09395,2017,8,France,HUMAN_OBSERVATION
+48.83585,-3.51022,2021,8,France,HUMAN_OBSERVATION
+48.86983,-1.8045,2016,9,France,HUMAN_OBSERVATION
+48.87667,-1.8,2012,5,France,HUMAN_OBSERVATION
+48.87738,-1.80931,2012,9,France,HUMAN_OBSERVATION
+48.8779,-1.79918,2016,9,France,HUMAN_OBSERVATION
+48.88803,-1.80372,,,France,HUMAN_OBSERVATION
+49.14847,-2.0097,2020,6,Jersey,HUMAN_OBSERVATION
+49.162,-2.023,2019,7,Jersey,HUMAN_OBSERVATION
+49.169857,-2.175458,2023,7,Jersey,HUMAN_OBSERVATION
+49.17236,-2.228476,2017,8,Jersey,HUMAN_OBSERVATION
+49.17236,-2.228476,2017,8,Jersey,HUMAN_OBSERVATION
+49.1743,-2.11367,2024,2,Jersey,HUMAN_OBSERVATION
+49.17463,-2.207891,2013,7,Jersey,HUMAN_OBSERVATION
+49.17463,-2.207891,2013,7,Jersey,HUMAN_OBSERVATION
+49.17532,-2.191319,2021,7,Jersey,HUMAN_OBSERVATION
+49.1815,-2.111,2019,10,Jersey,HUMAN_OBSERVATION
+49.1823,-2.1105,2019,3,Jersey,HUMAN_OBSERVATION
+49.203116,-2.01589,2019,4,Jersey,HUMAN_OBSERVATION
+49.24518,-2.06417,2015,6,Jersey,HUMAN_OBSERVATION
+49.25651,-2.215966,2017,8,Jersey,HUMAN_OBSERVATION
+49.25847,-2.224269,2020,8,Jersey,HUMAN_OBSERVATION
+49.25925,-2.222266,2017,8,Jersey,HUMAN_OBSERVATION
+49.26163,-2.150883,2013,7,Jersey,HUMAN_OBSERVATION
+49.26435,-2.129076,2015,6,Jersey,HUMAN_OBSERVATION
+49.28513,-2.19778,2013,7,Jersey,HUMAN_OBSERVATION
+49.34041,-0.2702,2023,6,France,HUMAN_OBSERVATION
+49.34041,-0.2702,2023,7,France,HUMAN_OBSERVATION
+49.48892,0.11775,2021,10,France,HUMAN_OBSERVATION
+49.48892,0.11775,2019,1,France,HUMAN_OBSERVATION
+49.48892,0.11775,2018,1,France,HUMAN_OBSERVATION
+49.48892,0.11775,2017,10,France,HUMAN_OBSERVATION
+49.48892,0.11775,2016,1,France,HUMAN_OBSERVATION
+49.67972,-1.72389,2023,8,France,HUMAN_OBSERVATION
+50.094747,-5.53784,2020,1,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.094747,-5.53784,2020,1,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.09657,-5.12229,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.239102,-5.396157,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.239102,-5.396157,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.239102,-5.396157,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.239102,-5.396157,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.239156,-5.39611,2018,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.242572,-3.762072,2014,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.313323,-4.046456,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.358004,-4.120635,2013,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2012,2,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2012,2,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2011,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2010,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2009,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2006,2,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.361856,-4.131352,2004,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.362113,-4.117303,2009,11,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.362113,-4.117303,2008,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.36385,-4.130932,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.364115,-4.13075,2016,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.364141,-4.129345,2013,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.364218,-4.12513,2005,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.365014,-4.130791,2016,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.365078,-4.132024,2022,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.42471,-5.096361,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.57026,-2.441696,2020,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.583226,-2.472416,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.589463,-2.486605,2002,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.59002,-2.330746,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.605361,-2.446495,2011,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.605361,-2.446495,2009,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.606696,-2.450041,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.60776,-1.950306,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.60802,-1.948892,2020,12,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.60811,-1.949401,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.60825,-1.949146,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.62594,-1.93496,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.68823,-1.954978,2013,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.68823,-1.954978,2013,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.68823,-1.954978,2013,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.69795,-1.966715,2016,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.711448,-1.977492,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.711448,-1.977492,2018,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+50.7136,-1.873374,2019,3,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.72422,1.59716,2017,5,France,HUMAN_OBSERVATION
+50.790374,-1.116804,2014,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.791263,-1.115369,2005,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.791707,-1.114651,2009,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.791707,-1.114651,2005,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+50.792162,-1.115352,2005,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.19731,-4.184006,2017,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.19731,-4.184006,2017,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.198957,-4.179132,2017,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+51.198957,-4.179132,2017,9,United Kingdom of Great Britain and Northern Ireland,MATERIAL_SAMPLE
+51.199646,-4.176888,2017,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.199703,-4.176246,2017,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.200575,-4.177719,2017,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.211832,-4.115608,2023,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.27029,3.21224,2024,2,Belgium,HUMAN_OBSERVATION
+51.33329,3.20088,2022,5,Belgium,HUMAN_OBSERVATION
+51.33329,3.2022,2022,8,Belgium,HUMAN_OBSERVATION
+51.35787,3.35626,2023,8,Belgium,HUMAN_OBSERVATION
+51.35793,3.35646,2023,8,Belgium,HUMAN_OBSERVATION
+51.4,3.55,2016,7,Netherlands,HUMAN_OBSERVATION
+51.5,4,2019,8,Netherlands,HUMAN_OBSERVATION
+51.5,4.15,2025,4,Netherlands,HUMAN_OBSERVATION
+51.5,4.15,2025,4,Netherlands,HUMAN_OBSERVATION
+51.52,3.43,2014,4,Netherlands,HUMAN_OBSERVATION
+51.52,4.004,2018,8,Netherlands,HUMAN_OBSERVATION
+51.6,4.05,2018,11,Netherlands,HUMAN_OBSERVATION
+51.6,4.05,2016,10,Netherlands,HUMAN_OBSERVATION
+51.628707,3.909945,2018,10,Netherlands,HUMAN_OBSERVATION
+51.63,3.69,2018,12,Netherlands,HUMAN_OBSERVATION
+51.63,3.69,2016,9,Netherlands,HUMAN_OBSERVATION
+51.63,3.69,2015,1,Netherlands,HUMAN_OBSERVATION
+51.63,3.69,2015,9,Netherlands,HUMAN_OBSERVATION
+51.646,4.105,2019,10,Netherlands,HUMAN_OBSERVATION
+51.65,3.75,2023,8,Netherlands,HUMAN_OBSERVATION
+51.696857,-4.677659,2022,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.696857,-4.677659,2022,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.7,3.9,2024,4,Netherlands,HUMAN_OBSERVATION
+51.707968,-5.140259,2002,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+51.707968,-5.140259,2002,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.2589,-9.914521,,,Ireland,HUMAN_OBSERVATION
+52.343991,-6.430949,,,Ireland,HUMAN_OBSERVATION
+52.652934,-9.551765,,,Ireland,HUMAN_OBSERVATION
+52.84269,1.535315,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.91842,1.351799,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.91844,1.351718,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.91857,1.352949,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.91903,1.35454,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.91903,1.35486,2020,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92053,1.3522,2020,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92154,1.345522,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92154,1.345522,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92171,1.348876,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92213,1.346431,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92343,1.34403,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.92343,1.34403,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93159,1.315238,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93253,1.315124,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93366,1.315955,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93508,1.298326,2017,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93508,1.298326,2017,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93975,1.276997,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93988,1.275332,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.93994,1.277369,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9421,1.250144,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94282,1.255052,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94282,1.255052,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94361,1.253168,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94425,1.25507,2018,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94425,1.25507,2018,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94627,1.218227,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94632,1.219072,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9467,1.217671,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94694,1.218142,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94698,1.222732,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94701,1.219004,2021,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9472,1.209972,2016,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94752,1.204077,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9476,1.219271,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9476,1.219271,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94761,1.215423,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9479,1.222443,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94792,1.207159,2021,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9482,1.167391,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9482,1.167391,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94838,1.206679,2021,11,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94838,1.206679,2021,11,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94844,1.216422,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9485,1.20735,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9485,1.20735,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94857,1.209009,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94872,1.205491,2021,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94878,1.20624,2021,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94878,1.20624,2021,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94878,1.210722,2018,11,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94895,1.209483,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94897,1.206008,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94897,1.206008,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94918,1.206723,2019,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94923,1.208492,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94928,1.211652,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94959,1.167709,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94959,1.167709,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94966,1.145176,2015,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94969,1.206553,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94971,1.166794,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94973,1.146016,2018,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94988,1.207468,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94988,1.207468,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94988,1.207468,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94993,1.145501,2016,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94993,1.145501,2016,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.94997,1.144663,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9501,1.144427,2017,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95012,1.144488,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9502,1.146176,2015,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95025,1.166946,2016,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95025,1.166946,2016,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95029,1.145937,2018,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95037,1.141423,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95044,1.144667,2017,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95046,1.209759,2011,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95046,1.209759,2011,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95046,1.209759,2011,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95053,1.147377,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95054,1.135442,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95069,1.14502,2016,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95075,1.138093,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95076,1.137766,2020,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95076,1.145234,2020,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95079,1.137835,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95084,1.13667,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95093,1.13725,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95121,1.135252,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95126,1.135047,2015,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95126,1.135047,2015,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95126,1.135047,2015,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95164,1.206079,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95176,1.146833,2017,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95219,1.137646,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95219,1.137646,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95219,1.137646,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95679,1.105177,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95704,1.101448,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95713,1.101306,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95718,1.099314,2016,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95718,1.101384,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9572,1.103754,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95721,1.102288,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95721,1.103449,2021,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9573,1.102078,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95738,1.105077,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95746,1.102663,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95782,1.10292,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95794,1.102995,2020,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.95806,1.098826,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96047,1.084916,2021,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96168,1.085784,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9639,1.069929,2019,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96522,1.054695,2020,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96526,1.05437,2014,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96536,1.053639,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96551,1.054447,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96551,1.055475,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96551,1.055475,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96556,1.054436,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96561,1.053307,2014,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96566,1.055321,2018,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.9657,1.054564,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96572,1.055564,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96572,1.055564,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96577,1.055732,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96593,1.05461,2015,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96648,1.052422,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96648,1.052422,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96655,1.054133,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96655,1.054133,2020,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96656,1.051743,2014,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96675,1.054483,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96678,1.054194,2019,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96682,1.053713,2018,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96706,1.055733,2018,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96711,1.054448,2015,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96773,1.053896,2016,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+52.96807,1.054025,2016,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+53.42659,-4.438932,2012,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+53.42824,-4.432161,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+53.553688,-9.989611,,,Ireland,HUMAN_OBSERVATION
+54.03984,-6.109179,2013,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.03984,-6.109179,2013,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.03984,-6.109179,2013,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.049045,-6.177004,,,Ireland,HUMAN_OBSERVATION
+54.05151,-6.190184,2012,8,Ireland,HUMAN_OBSERVATION
+54.068306,-6.191826,2018,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.07318,-6.182687,2013,6,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.415491,-5.628553,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.415491,-5.628553,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.48989,-5.646461,2015,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49006,-5.641795,2015,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49006,-5.641795,2014,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49006,-5.641795,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.490164,-5.642835,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.490344,-5.648769,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.490344,-5.648769,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49043,-5.6426,2018,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.490488,-5.643662,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.490488,-5.643662,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.491112,-5.649472,2023,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.491313,-5.649673,2022,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.491313,-5.649673,2022,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.492844,-5.651036,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.492844,-5.651036,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493516,-5.650446,2025,4,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493516,-5.650446,2025,4,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493527,-5.651326,2025,4,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493527,-5.651326,2025,4,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49357,-5.647793,2013,8,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49357,-5.647793,2012,9,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49357,-5.647793,2012,10,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49358,-5.651375,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.49358,-5.651375,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493592,-5.651272,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493592,-5.651272,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493603,-5.651308,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.493603,-5.651308,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.665437,-5.67325,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.665437,-5.67325,2024,7,United Kingdom of Great Britain and Northern Ireland,HUMAN_OBSERVATION
+54.949264,-8.409701,,,Ireland,HUMAN_OBSERVATION
