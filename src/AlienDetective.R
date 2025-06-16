@@ -90,8 +90,8 @@ data.table::setkey(location_coordinates, "Observatory.ID")
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
 # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-#species_subset <- c("Aurelia solida")
-#species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
+species_subset <- c("Aurelia solida")
+species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
 #species_location <- species_location[c(2, 10, 57),] # Or subset a few species to try at random
 
 # Create a simple character vector of species names for easy iteration
