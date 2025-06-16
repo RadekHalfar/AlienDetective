@@ -186,6 +186,7 @@ dist_start <- Sys.time()
 
 # Process species one by one
 for (species in species_vec) {
+  
   # skip empty / NA entries
   if (is.na(species) || nchar(trimws(species)) == 0) next
    
@@ -207,7 +208,10 @@ for (species in species_vec) {
   } else {
     #cat(">>> [GBIF] Fetching GBIF data for", species, "\n")
     gbif_occurrences <- fetch_gbif_data(species, fields = required_columns)
-    if (is.null(gbif_occurrences)) return(NULL)
+    if (is.null(gbif_occurrences)) {
+      message("[GBIF] No occurrence records for ", species, " – skipping.")
+      next
+    }
     
     dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
     data.table::fwrite(gbif_occurrences, file = gbif_file)
@@ -291,7 +295,8 @@ for (species in species_vec) {
   # Save to csv file using fwrite
   data.table::fwrite(gbif_occurrences, file = gbif_file)
   cat("\n")
-  return(TRUE)  # To avoid printing NULL in stdout
+  # Move on to next species in the loop
+  next
 }
 
 cat(">>> [DONE] Finished calculating distances for all species. \n")
