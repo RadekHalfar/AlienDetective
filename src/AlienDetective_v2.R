@@ -41,15 +41,36 @@ species$location_coordinates <- check_coordinates(species$location_coordinates)
 # get gbif data
 gbif_data <- gbif_data(species)
 
-# Determine which locations still need distance computation
-# species_row <- species_location[Specieslist == species]
-# presence_vals <- as.numeric(species_row[, -1])
-# detected_locs <- names(species_row)[-1][!is.na(presence_vals) & presence_vals >= 1]
-# 
-# existing_dist_cols <- grep("(_seaway|_geodesic)$", names(gbif_occurrences), value = TRUE)
-# processed_locs <- unique(sub("_(seaway|geodesic)$", "", existing_dist_cols))
-# 
-# missing_locs <- setdiff(detected_locs, processed_locs)
+# get missing locations for distance computation
+missing_locs <- get_location(species, gbif_data)
 
+unique_coords <- process_gbif_coords(gbif_data)
 
+# add information about lattitude and longitude to missing locations
+setkey(species$location_coordinates, Observatory.ID) # Set keys for fast join
+
+# Perform the join (left join)
+missing_locs <- species$location_coordinates[
+  missing_locs,
+  on = .(Observatory.ID = missing_locs)
+]
+
+# create data table for row wise calculation of calculate.distances function 
+
+setnames(missing_locs, c("Longitude", "Latitude"),
+         c("Longitude_missing_locs", "Latitude_missing_locs")) # Rename Longitude and Latitude in missing_locs
+setkey(unique_coords, species)
+setkey(missing_locs, species)
+merged_dt <- missing_locs[unique_coords, allow.cartesian = TRUE] # Perform the join (many-to-many by species)
+
+# compute distance for missing locations
+dists <- calculate.distances_v2(
+  data = merged_dt,
+  raster_map = r,
+  cost_matrix = cost_matrix
+)
+
+# merge results
+merged_dt[, `:=`(dist_seaway    = dists$sea_distances,
+                 dist_geodesic  = dists$geodesic_distances)]
 

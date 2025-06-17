@@ -73,7 +73,7 @@ get_species <- function(paths){
   # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
   
   # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-  #species_location <- species_location[which(species_location$Specieslist %in% "Aurelia solida"),]
+  species_location <- species_location[which(species_location$Specieslist %in% "Aurelia solida"),]
 
   # Create a simple character vector of species names for easy iteration
   species_vec <- as.character(species_location[[1]])
@@ -183,21 +183,69 @@ gbif_data <- function(species, write_gbif_file = TRUE){
 }
 
 # Determine which locations still need distance computation
-get_location <- function(species, gbif_data){
+get_location <- function(species, gbif_data) {
   
-  for (species_ in species$species_vec) {
-    
-    species_row <- species$species_location[Specieslist == species_]
-    presence_vals <- as.numeric(species_row[, -1])
-    detected_locs <- names(species_row)[-1][!is.na(presence_vals) & presence_vals >= 1]
-    
-    gbif_occurrences <- gbif_data$gbif_occurrences[which(gbif_data$species == species_)]
-    
-    existing_dist_cols <- grep("(_seaway|_geodesic)$", names(gbif_occurrences), value = TRUE)
-    processed_locs <- unique(sub("_(seaway|geodesic)$", "", existing_dist_cols))
-    
-    missing_locs <- setdiff(detected_locs, processed_locs)
-    
+  calc_missing <- function(sp, occ_tbl) {
+    # Locations where the species is present (value >= 1)
+    row          <- species$species_location[species$species_location$Specieslist == sp]
+    pres_values  <- as.numeric(row[, -1])
+    detected     <- names(row)[-1][pres_values >= 1 & !is.na(pres_values)]
+
+    # Locations that already have distance columns computed
+    processed    <- sub("_(seaway|geodesic)$", "",
+                        grep("(_seaway|_geodesic)$", names(occ_tbl), value = TRUE))
+
+    # Return only the locations still missing
+    setdiff(detected, processed)
   }
+
+  # Map over species vector and its corresponding GBIF occurrences table
+  missing_locs <- Map(calc_missing,
+                      species$species_vec,
+                      gbif_data$gbif_occurrences)
+
+  # Attach species names for easier downstream access
+  names(missing_locs) <- species$species_vec
+  
+  # Remove NULLs and empty character vectors
+  missing_locs <- Filter(function(x) !is.null(x) && length(x) > 0, missing_locs)
+  
+  # convert to data.table
+  missing_locs_dt <- rbindlist(
+    lapply(names(missing_locs), function(sp) {
+      data.table(species = sp, missing_locs = missing_locs[[sp]])
+    }),
+    use.names = TRUE
+  )
+  
+  return(missing_locs_dt)
   
 }
+
+# Extract unique latitude/longitude pairs for each species
+process_gbif_coords <- function(gbif_data) {
+  res <- lapply(gbif_data$gbif_occurrences,
+                function(tbl) unique(tbl[, c("latitude", "longitude")]))
+  # Ensure list is named by species
+  names(res) <- names(gbif_data$gbif_occurrences)
+
+  # Remove NULL values
+  res <- Filter(Negate(is.null), res)
+
+  # Create data.table with unique latitude/longitude pairs for each species
+  result_dt <- rbindlist(
+    lapply(names(res), function(nm) {
+      dt <- res[[nm]]
+      dt[, species := nm]  # Add a new column "name"
+      dt[, .(species, latitude, longitude)]  # Keep only desired columns
+    }),
+    use.names = TRUE
+  )
+
+  # Process coordinates, move points on land to sea
+  result_dt <- process_coords(result_dt)
+
+  return(result_dt)
+}
+  
+

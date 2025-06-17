@@ -263,6 +263,7 @@ for (species in species_vec) {
     message("Species ", species, ": moving to sea failed for ", failed_count, " coordinate pairs.")
   }
   
+  print(missing_locs)
   # Process locations and calculate distances only for missing_locs
   if (length(missing_locs) > 0) {
     unique_coords <- process_species_locations(
