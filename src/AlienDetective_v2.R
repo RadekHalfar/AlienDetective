@@ -3,6 +3,11 @@ setwd("C:/Users/radek/Documents/IT4I_projects/BioFlow/AlienDetective")
 # Clear workspace
 rm(list = ls())
 
+library(profvis)
+
+# Start profiler: captures time & memory usage per function/line
+#pv <- profvis({
+
 # load functions
 lapply(c("setup", "computation", "plotting", "data_manipulation"),
        function(f) source(file.path("src", paste0("functions_", f, ".R"))))
@@ -63,3 +68,9 @@ distances_gbif_list <- create_gbif_occurrences_file(species, gbif_data, distance
 
 # Plotting
 plot_data(distances_gbif_list)
+
+unlink("output", recursive = TRUE, force = TRUE)
+
+#}) # end profvis
+
+#print(pv)

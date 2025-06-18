@@ -414,12 +414,14 @@ for (species in species_vec) {
 
 plot_end <- Sys.time()
 plot_time <- as.numeric(difftime(plot_end, plot_start, units = "secs"))
-cat(">>> [DONE] Finished plotting for all species.\n")
+# cat(">>> [DONE] Finished plotting for all species.\n")
 
 end_time <- Sys.time()
 total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
 
-cat(">>> [TIMING] Setup completed in", round(setup_time, 2), "seconds.\n")
-cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
-cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
-cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
+# cat(">>> [TIMING] Setup completed in", round(setup_time, 2), "seconds.\n")
+# cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
+# cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
+# cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
+
+unlink("output", recursive = TRUE, force = TRUE)

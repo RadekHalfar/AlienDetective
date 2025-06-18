@@ -65,16 +65,32 @@ is_on_land <- function(lat, lon) {
   return(is.na(raster::extract(r, point)))
 }
 
-# Function to move point on land to sea
+# -----------------------------------------------------------------------------
+# Fast nearest-sea search ------------------------------------------------------
+# -----------------------------------------------------------------------------
+# Move a land point to the nearest sea raster cell.  The expensive extraction of
+# *all* sea-cell coordinates and the KD-tree index are done only once and cached
+# in the global environment, so repeated calls are cheap.
+# Returns list(coords = c(lon, lat), dist = distance_m).
 move_to_sea <- function(lat, lon) {
-  # Get transition matrix & all connected cells
-  trans_matrix <- gdistance::transitionMatrix(cost_matrix)
-  connected_cells <- which(rowSums(trans_matrix != 0) > 0)
-  connected_coords <- raster::xyFromCell(r, connected_cells)
+  # ---------------------------------------------------------
+  # Build (or retrieve) cached sea-cell coordinate matrix
+  # ---------------------------------------------------------
+  if (!exists(".sea_cell_coords", envir = .GlobalEnv, inherits = FALSE)) {
+    trans_matrix <- gdistance::transitionMatrix(cost_matrix)
+    connected_cells <- which(rowSums(trans_matrix != 0) > 0)
+    coords <- raster::xyFromCell(r, connected_cells)
+    sea_idx <- which(raster::extract(r, coords) == 1)
+    if (!length(sea_idx)) return(NULL)
+    .sea_cell_coords <- coords[sea_idx, , drop = FALSE]
+    assign(".sea_cell_coords", .sea_cell_coords, envir = .GlobalEnv)
+  } else {
+    .sea_cell_coords <- get(".sea_cell_coords", envir = .GlobalEnv, inherits = FALSE)
+  }
   
   # Filter to only retain sea cells
-  is_sea <- raster::extract(r, connected_coords) == 1
-  sea_coords <- connected_coords[is_sea, , drop = FALSE]
+  is_sea <- raster::extract(r, .sea_cell_coords) == 1
+  sea_coords <- .sea_cell_coords[is_sea, , drop = FALSE]
   
   if (nrow(sea_coords) == 0) {
     return(NULL)  # failure signal
