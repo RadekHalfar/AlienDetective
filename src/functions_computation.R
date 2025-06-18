@@ -113,62 +113,8 @@ move_to_sea <- function(lat, lon) {
   return(NULL) # when no sea point found
 }
 
-
 # Main function: calculates both sea route and geodesic distances from every downloaded GBIF occurrence to the species occurrence in question
-calculate.distances <- function(data, latitude, longitude, raster_map, cost_matrix) {
-  
-  # Validate input -----------------------------------------------------------
-  if (is.null(data) || nrow(data) == 0) {
-    return(list(sea_distances = NULL,
-                geodesic_distances = NULL,
-                error_messages = "Input table is NULL or empty"))
-  }
-  
-  tryCatch({
-    # -----------------------------------------------------------------------
-    # Prepare coordinate vectors (prefer *_moved when available)
-    # -----------------------------------------------------------------------
-    x_coord <- ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved)
-    y_coord <- ifelse(is.na(data$latitude_moved),  data$latitude,  data$latitude_moved)
-    
-    # Identify points that lie in the sea (raster value == 1)
-    at_sea <- raster::extract(raster_map, cbind(x_coord, y_coord)) == 1L
-    
-    n <- length(x_coord)
-    sea_distances <- rep(NA_real_, n)
-    geo_distances <- rep(NA_real_, n)
-    
-    if (any(at_sea)) {
-      # SpatialPoints for gdistance (needs identical CRS)
-      crs_wgs84 <- sp::CRS("+proj=longlat +datum=WGS84")
-      query_pt  <- sp::SpatialPoints(cbind(longitude, latitude), proj4string = crs_wgs84)
-      sea_pts   <- sp::SpatialPoints(cbind(x_coord[at_sea], y_coord[at_sea]), proj4string = crs_wgs84)
-      
-      # Sea-route distances (in km)
-      sea_distances[at_sea] <- as.numeric(gdistance::costDistance(cost_matrix, query_pt, sea_pts)) / 1000
-      
-      # Geodesic distances (in km) – build proper lon/lat data.frames to avoid column-name warnings
-      origin_df <- data.table::data.table(lon = longitude, lat = latitude)
-      dest_df   <- data.table::data.table(lon = x_coord[at_sea], lat = y_coord[at_sea])
-      geo_distances[at_sea] <- as.numeric(
-        geodist::geodist(origin_df, dest_df, measure = "geodesic")
-      ) / 1000
-    }
-    
-    # Round to whole kilometres for consistency
-    return(list(sea_distances       = round(sea_distances, 0),
-                geodesic_distances = round(geo_distances, 0),
-                error_messages     = NULL))
-    
-  }, error = function(e) {
-    return(list(sea_distances       = NULL,
-                geodesic_distances = NULL,
-                error_messages     = paste("calculate.distances error:", e$message)))
-  })
-}
-
-# Main function: calculates both sea route and geodesic distances from every downloaded GBIF occurrence to the species occurrence in question
-calculate.distances_v2 <- function(data, raster_map, cost_matrix) {
+calculate.distances <- function(data, raster_map, cost_matrix) {
   # Validate input -----------------------------------------------------------
   if (is.null(data) || nrow(data) == 0) {
     return(list(sea_distances = NULL,

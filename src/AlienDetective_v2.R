@@ -4,9 +4,8 @@ setwd("C:/Users/radek/Documents/IT4I_projects/BioFlow/AlienDetective")
 rm(list = ls())
 
 # load functions
-source("src/functions_setup.R")
-source("src/functions_computation.R")
-source("src/functions_plotting.R")
+lapply(c("setup", "computation", "plotting", "data_manipulation"),
+       function(f) source(file.path("src", paste0("functions_", f, ".R"))))
 
 # setup workspace
 paths <- setup_workspace()
@@ -24,7 +23,6 @@ sapply(species$directory, function(dir) {
     dir.create(dir, recursive = TRUE)
   }
 })
-
 
 # create gbif file name
 species$gbif_file <- file.path(species$directory, paste0(species$safe_name, ".csv"))
@@ -46,31 +44,22 @@ missing_locs <- get_location(species, gbif_data)
 
 unique_coords <- process_gbif_coords(gbif_data)
 
-# add information about lattitude and longitude to missing locations
-setkey(species$location_coordinates, Observatory.ID) # Set keys for fast join
-
-# Perform the join (left join)
-missing_locs <- species$location_coordinates[
-  missing_locs,
-  on = .(Observatory.ID = missing_locs)
-]
-
-# create data table for row wise calculation of calculate.distances function 
-
-setnames(missing_locs, c("Longitude", "Latitude"),
-         c("Longitude_missing_locs", "Latitude_missing_locs")) # Rename Longitude and Latitude in missing_locs
-setkey(unique_coords, species)
-setkey(missing_locs, species)
-merged_dt <- missing_locs[unique_coords, allow.cartesian = TRUE] # Perform the join (many-to-many by species)
+# create data table for row wise calculation of calculate.distances function
+distances_dt <- add_missing_dist(species, missing_locs, unique_coords)
 
 # compute distance for missing locations
-dists <- calculate.distances_v2(
-  data = merged_dt,
+dists <- calculate.distances(
+  data = distances_dt,
   raster_map = r,
   cost_matrix = cost_matrix
 )
 
 # merge results
-merged_dt[, `:=`(dist_seaway    = dists$sea_distances,
-                 dist_geodesic  = dists$geodesic_distances)]
+distances_dt[, `:=`(dist_seaway    = dists$sea_distances,
+                    dist_geodesic  = dists$geodesic_distances)]
 
+# create new gbif occurences file
+distances_gbif_list <- create_gbif_occurrences_file(species, gbif_data, distances_dt)
+
+# Plotting
+plot_data(distances_gbif_list)

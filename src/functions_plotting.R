@@ -103,3 +103,65 @@ plot.dist.by.year <- function(species, location, data, output_dir) {
                   plot, width = 2400, height = 1200, units = "px", dpi = 300)
   invisible(plot)
 }
+
+# plot data
+plot_data <- function(distances_gbif_list){
+  brks <- c(1965, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025)
+  labs <- paste(head(brks, -1), tail(brks, -1), sep = "-")
+  
+  invisible(lapply(names(distances_gbif_list), function(species) {
+    if (is.na(species) || nchar(trimws(species)) == 0) return(NULL)
+    
+    entry <- distances_gbif_list[[species]]
+    safe_name   <- entry$safe_name
+    species_dir <- entry$directory
+    distance_dt <- copy(entry$data)  # Copy to avoid modifying original
+    
+    dist_cols <- grep("(_seaway|_geodesic)$", names(distance_dt), value = TRUE)
+    if (length(dist_cols) == 0) {
+      warning(sprintf("No distance columns found for species '%s'. Skipping.", species))
+      return(NULL)
+    }
+    
+    # Ensure numeric and melt
+    distance_dt[, (dist_cols) := lapply(.SD, as.numeric), .SDcols = dist_cols]
+    long_dt <- melt(distance_dt,
+                    measure.vars = dist_cols,
+                    variable.name = "loc_type",
+                    value.name = "x",
+                    variable.factor = FALSE)
+    
+    long_dt[, `:=`(
+      DistanceType = fifelse(grepl("_seaway$", loc_type), "seaway", "geodesic"),
+      location     = sub("_(seaway|geodesic)$", "", loc_type)
+    )][, loc_type := NULL]
+    
+    long_dt[, year_category := cut(year, breaks = brks, labels = labs, right = FALSE)]
+    
+    long_sea <- long_dt[DistanceType == "seaway" & !is.na(x) & is.finite(x)]
+    long_geo <- long_dt[DistanceType == "geodesic"]
+    
+    # Overall plot
+    country.final(
+      species = species,
+      data = long_sea,
+      output_dir = species_dir
+    )
+    
+    # Per-location plots
+    locs <- unique(long_sea$location)
+    lapply(locs, function(loc) {
+      sea_loc_data <- long_sea[location == loc]
+      geo_loc_data <- long_geo[location == loc]
+      combined_distances <- rbindlist(list(sea_loc_data, geo_loc_data), use.names = TRUE)
+      
+      plot.dist.sea(species, loc, sea_loc_data, species_dir)
+      plot.dist.both(species, loc, combined_distances, species_dir)
+      plot.dist.by.country(species, loc, sea_loc_data, species_dir)
+      plot.dist.by.year(species, loc, sea_loc_data, species_dir)
+      NULL
+    })
+    
+    NULL  # Prevents lapply from returning results
+  }))
+}
