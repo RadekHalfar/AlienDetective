@@ -6,7 +6,7 @@ rm(list = ls())
 library(profvis)
 
 # Start profiler: captures time & memory usage per function/line
-#pv <- profvis({
+pv <- profvis({
 
 # load functions
 lapply(c("setup", "computation", "plotting", "data_manipulation"),
@@ -39,7 +39,7 @@ r <- get_world_map(paths)
 cost_matrix <- get_cost_matrix(paths)
 
 # Check input coordinates file
-species$location_coordinates <- check_coordinates(species$location_coordinates)
+species$location_coordinates <- check_coordinates(species$location_coordinates, r, cost_matrix)
 
 # get gbif data
 gbif_data <- gbif_data(species)
@@ -47,7 +47,7 @@ gbif_data <- gbif_data(species)
 # get missing locations for distance computation
 missing_locs <- get_location(species, gbif_data)
 
-unique_coords <- process_gbif_coords(gbif_data)
+unique_coords <- process_gbif_coords(gbif_data, r, cost_matrix)
 
 # create data table for row wise calculation of calculate.distances function
 distances_dt <- add_missing_dist(species, missing_locs, unique_coords)
@@ -71,6 +71,6 @@ plot_data(distances_gbif_list)
 
 unlink("output", recursive = TRUE, force = TRUE)
 
-#}) # end profvis
+}) # end profvis
 
-#print(pv)
+print(pv)

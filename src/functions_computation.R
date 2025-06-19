@@ -60,7 +60,7 @@ fetch_gbif_data <- function(species,
 
 
 # Function to check if point is on land (TRUE = land, FALSE = sea)
-is_on_land <- function(lat, lon) {
+is_on_land <- function(lat, lon, r) {
   point <- sp::SpatialPoints(cbind(lon, lat), proj4string = sp::CRS(proj4string(r)))
   return(is.na(raster::extract(r, point)))
 }
@@ -72,7 +72,7 @@ is_on_land <- function(lat, lon) {
 # *all* sea-cell coordinates and the KD-tree index are done only once and cached
 # in the global environment, so repeated calls are cheap.
 # Returns list(coords = c(lon, lat), dist = distance_m).
-move_to_sea <- function(lat, lon) {
+move_to_sea <- function(lat, lon, r, cost_matrix) {
   # ---------------------------------------------------------
   # Build (or retrieve) cached sea-cell coordinate matrix
   # ---------------------------------------------------------
@@ -193,7 +193,7 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
 # Process a data.table of coordinates and, if necessary, move points on land to the nearest sea cell.
 # Expects a data.table with at least the columns: "species", "latitude", "longitude".
 # Returns the same table plus: latitude_moved, longitude_moved, dist_moved (km).
-process_coords <- function(coords_dt) {
+process_coords <- function(coords_dt, r, cost_matrix) {
   # -------------------------
   # Input validation
   # -------------------------
@@ -222,13 +222,13 @@ process_coords <- function(coords_dt) {
     chunk <- result[idx_start:idx_end]
     
     # Determine whether each point is on land
-    chunk[, is_land := mapply(is_on_land, latitude, longitude)]
+    chunk[, is_land := mapply(is_on_land, latitude, longitude, MoreArgs = list(r = r))]
     
     # Handle points on land
     land_idx <- which(chunk$is_land)
     if (length(land_idx) > 0) {
       moved <- lapply(land_idx, function(i) {
-        move_to_sea(chunk$latitude[i], chunk$longitude[i])
+        move_to_sea(chunk$latitude[i], chunk$longitude[i], r, cost_matrix)
       })
       
       # Update moved coordinates

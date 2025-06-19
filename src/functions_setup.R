@@ -123,13 +123,13 @@ get_cost_matrix <- function(paths){
 }
 
 # Check input coordinates file
-check_coordinates <- function(location_coordinates){
+check_coordinates <- function(location_coordinates, r, cost_matrix){
   for (i in 1:nrow(location_coordinates)) {
     loc_name <- location_coordinates$Observatory.ID[i]
     longitude <- as.numeric(gsub(",", ".", location_coordinates$Longitude[i]))
     latitude <- as.numeric(gsub(",", ".", location_coordinates$Latitude[i]))  
-    if (is_on_land(latitude, longitude)) {
-      moved <- move_to_sea(latitude, longitude)
+    if (is_on_land(latitude, longitude, r)) {
+      moved <- move_to_sea(latitude, longitude, r, cost_matrix)
       
       if (is.null(moved)) {
         message(loc_name, " is on land, no valid sea coordinates found")
@@ -223,7 +223,7 @@ get_location <- function(species, gbif_data) {
 }
 
 # Extract unique latitude/longitude pairs for each species
-process_gbif_coords <- function(gbif_data) {
+process_gbif_coords <- function(gbif_data, r, cost_matrix) {
   res <- lapply(gbif_data$gbif_occurrences,
                 function(tbl) unique(tbl[, c("latitude", "longitude")]))
   # Ensure list is named by species
@@ -243,7 +243,7 @@ process_gbif_coords <- function(gbif_data) {
   )
 
   # Process coordinates, move points on land to sea
-  result_dt <- process_coords(result_dt)
+  result_dt <- process_coords(result_dt, r, cost_matrix)
 
   return(result_dt)
 }
