@@ -170,10 +170,10 @@ profiling_data <- NULL
     ggplot2::theme_minimal()
   
   # Combine plots
-  combined_plot <- gridExtra::grid.arrange(p1, p2, ncol = 1)
+  combined_plot <- gridExtra::grid.arrange(p1, p2, ncol = 2)
   
-  # Save to temp file
-  ggplot2::ggsave(plot_file, combined_plot, width = 10, height = 12)
+  # Save to temp file with smaller dimensions
+  ggplot2::ggsave(plot_file, combined_plot, width = 25, height = 5, dpi = 300)
   
   # Return base64 encoded image
   knitr::image_uri(plot_file)
@@ -205,6 +205,15 @@ generate_profiling_report <- function(output_dir = "profiling_reports") {
   
   # Generate summary statistics
   summary_stats <- .generate_summary_stats(profiling_data)
+  
+  # Add number of steps to summary
+  summary_stats <- rbind(summary_stats, 
+                        data.frame(
+                          Metric = "Number of Steps",
+                          Value = as.character(nrow(profiling_data)),
+                          stringsAsFactors = FALSE
+                        )
+  )
   
   # Generate plots
   plot_data <- tryCatch({
@@ -240,14 +249,16 @@ generate_profiling_report <- function(output_dir = "profiling_reports") {
       <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
       <link href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css" rel="stylesheet">
       <style>
-        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
-        .header { background-color: #2c3e50; color: white; padding: 2rem 0; margin-bottom: 2rem; border-radius: 5px; }
-        .card { margin-bottom: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: none; }
-        .card-header { background-color: #f8f9fa; font-weight: 600; }
+        body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; line-height: 1.5; color: #333; font-size: 0.95rem; }
+        .header { background-color: #2c3e50; color: white; padding: 1.5rem 0; margin-bottom: 1.5rem; border-radius: 5px; }
+        .card { margin-bottom: 1.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .card-header { background-color: #f8f9fa; font-weight: 600; padding: 0.75rem 1.25rem; }
+        .card-body { padding: 1rem; }
         .summary-card { background-color: #f8f9fa; border-left: 4px solid #007bff; }
-        .plot-container { margin: 2rem 0; text-align: center; }
-        .data-table { margin-top: 2rem; }
-        .footer { margin-top: 3rem; padding: 1.5rem 0; border-top: 1px solid #eee; color: #6c757d; font-size: 0.9em; }
+        .plot-container { margin: 1rem 0; text-align: center; }
+        .plot-img { max-width: 90%; height: auto; }
+        .data-table { margin-top: 1.5rem; font-size: 0.9rem; }
+        .footer { margin-top: 2rem; padding: 1rem 0; border-top: 1px solid #eee; color: #6c757d; font-size: 0.85em; }
       </style>
     </head>
     <body>
