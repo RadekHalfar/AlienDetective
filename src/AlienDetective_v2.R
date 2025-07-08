@@ -3,10 +3,17 @@ setwd("C:/Users/radek/Documents/IT4I_projects/BioFlow/AlienDetective")
 # Clear workspace
 rm(list = ls())
 
-library(profvis)
+# Load profiling functions
+source("src/profiling.R")
+
+# Initialize profiling
+.init_profiling()
+.start_profiling_step("Script initialization")
+
+#library(profvis)
 
 # Start profiler: captures time & memory usage per function/line
-pv <- profvis({
+#pv <- profvis({
 
 # load functions
 lapply(c("setup", "computation", "plotting", "data_manipulation"),
@@ -15,10 +22,17 @@ lapply(c("setup", "computation", "plotting", "data_manipulation"),
 # setup workspace
 paths <- setup_workspace()
 
+# End initialization profiling
+.end_profiling_step("Script initialization")
+
+# Read input data
+.start_profiling_step("Read input data")
+
 # Get species to analyze
 species <- get_species(paths)
 
-# create safe name
+# End read input data profiling
+.end_profiling_step("Read input data")# create safe name
 species$safe_name <- gsub(" ", "_", species$species_vec)
 
 # create output directories
@@ -40,6 +54,8 @@ cost_matrix <- get_cost_matrix(paths)
 
 # Check input coordinates file
 species$location_coordinates <- check_coordinates(species$location_coordinates, r, cost_matrix)
+
+.start_profiling_step("Process species data")
 
 # get gbif data
 gbif_data <- gbif_data(species)
@@ -66,11 +82,18 @@ distances_dt[, `:=`(dist_seaway    = dists$sea_distances,
 # create new gbif occurences file
 distances_gbif_list <- create_gbif_occurrences_file(species, gbif_data, distances_dt)
 
+.end_profiling_step("Process species data")
+
 # Plotting
+.start_profiling_step("Generate plots")
 plot_data(distances_gbif_list)
+.end_profiling_step("Generate plots")
 
 unlink("output", recursive = TRUE, force = TRUE)
 
-}) # end profvis
+# Generate final profiling report
+generate_profiling_report()
 
-print(pv)
+#}) # end profvis
+
+#print(pv)

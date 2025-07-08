@@ -1,8 +1,15 @@
 # Clear workspace
 rm(list = ls())
 
-# AlienDetective.R
-# Main script
+# AlienDetective_MGielen.R
+# Main script with MGielen's modifications
+
+# Load profiling functions
+source("src/profiling.R")
+
+# Initialize profiling
+.init_profiling()
+.start_profiling_step("Script initialization")
 
 
 #############
@@ -30,7 +37,10 @@ graphics.off()
 # That way it's easier to maintain the code and see which packages are actually required as development progresses, and you also avoid clashes between
 # package namespaces, making sure that the correct function is always used regardless of which other packages the user has installed and loaded.
 #cat(">>> [INIT] Checking for required packages...\n")
-packages <- c("rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize", "ggplot2", "rnaturalearth", "rnaturalearthdata", "dplyr", "foreach", "doParallel", "geosphere", "leaflet", "tidyr", "htmlwidgets")
+packages <- c("rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize", 
+             "ggplot2", "rnaturalearth", "rnaturalearthdata", "dplyr", "foreach", 
+             "doParallel", "geosphere", "leaflet", "tidyr", "htmlwidgets",
+             "pryr", "tictoc", "knitr", "kableExtra")  # Added for profiling
 for (package in packages) {
   if(!requireNamespace(package, quietly = TRUE)) {
     install.packages(package)
@@ -44,6 +54,11 @@ for (package in packages) {
 # install.packages("devtools")
 # remotes::install_github("ropensci/rnaturalearthhires")
 
+# End initialization profiling
+.end_profiling_step("Script initialization")
+
+# Read input data
+.start_profiling_step("Read input data")
 cat(">>> [INIT] Reading input data...\n")
 args <- commandArgs(trailingOnly = TRUE)
 species_location_path <- args[1]  # First argument: path to species file
@@ -72,6 +87,9 @@ species_location <- read.csv(species_location_path, sep = ";")
 species_location <- species_location[!duplicated(species_location[1]),]
 # Read table of coordinates for every location name (ObservatoryID)
 location_coordinates <- read.csv(location_coordinates_path, sep = ";")
+
+# End read input data profiling
+.end_profiling_step("Read input data")
 
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
@@ -159,6 +177,7 @@ setup_time <- as.numeric(difftime(setup_end, setup_start, units = "secs"))
 #############################
 ### DISTANCES CALCULATION ###
 #############################
+.start_profiling_step("Process species data")
 dist_start <- Sys.time()
 
 # For non-parallel execution -> use "for" loop
@@ -171,6 +190,7 @@ dist_start <- Sys.time()
 for (species in species_location[,1]) {
 # foreach(species = species_location[,1],
 #         .packages = c("dplyr", "raster", "sp", "gdistance", "geodist")) %dopar% {
+  .start_profiling_step(paste("Process species:", species))
   species_dir <- file.path(output_dir, gsub(" ", "_", species))
   gbif_occurrences_file <- file.path(species_dir, paste0(gsub(" ", "_", species), ".csv"))
   if (file.exists(gbif_occurrences_file)) {
@@ -260,9 +280,11 @@ for (species in species_location[,1]) {
     dplyr::left_join(unique_coords, by = c("latitude", "longitude"))
 
     # Save to csv file
+  # Save the processed data
   write.csv(gbif_occurrences, file = gbif_occurrences_file, row.names = FALSE)
-  cat("\n")
-  return(TRUE)  # To avoid printing NULL in stdout
+  
+  # End profiling for this species
+#  .end_profiling_step(paste("Process species:", species))
 }
 
 cat(">>> [DONE] Finished calculating distances for all species.")
@@ -273,14 +295,20 @@ dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
 # Close the cluster   (place in comments for use on Windows OS)
 # stopCluster(cluster)
 
+# End process all species
+.end_profiling_step("Process species data")
+
 ##############
 ## Plotting ##
 ##############
 
+.start_profiling_step("Generate plots")
 plot_start <- Sys.time()
 
 #Iterate over species names in the species_location variable
 for (species in species_location[,1]) {
+  # Start profiling for this species plotting
+#  .start_profiling_step(paste("Plot species:", species))
   species_ <- gsub(" ", "_", species) #Change the space to a "_" to make sure the species file is found
   species_dir <- file.path(output_dir, species_) #Put the species filename in a variable
   #If the file exist execute following lines
@@ -369,5 +397,10 @@ total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
 # cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
 # cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
 # cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
+
+.end_profiling_step("Generate plots")
+
+# Generate final profiling report
+generate_profiling_report()
 
 unlink("output", recursive = TRUE, force = TRUE)

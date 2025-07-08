@@ -4,6 +4,13 @@ rm(list = ls())
 # AlienDetective.R
 # Main script
 
+# Load profiling functions
+source("src/profiling.R")
+
+# Initialize profiling
+.init_profiling()
+.start_profiling_step("Script initialization")
+
 # Load required packages
 if (!requireNamespace("data.table", quietly = TRUE)) {
   install.packages("data.table")
@@ -74,6 +81,11 @@ list2env(setNames(as.list(args), c("species_location_path", "location_coordinate
                           "rasterized_path", "cost_matrix_path", "output_dir")),
          envir = environment())
 
+# End initialization profiling
+.end_profiling_step("Script initialization")
+
+.start_profiling_step("Read input data")
+
 # Read species-location presence/absence matrix using data.table
 species_location      <- data.table::fread(species_location_path,  sep = ";")
 # If there are more than one row per species, keep only the first row for each species
@@ -86,6 +98,9 @@ data.table::setDT(location_coordinates)
 # Set keys for faster lookups
 data.table::setkeyv(species_location, names(species_location)[1])
 data.table::setkey(location_coordinates, "Observatory.ID")
+
+# End read input data profiling
+.end_profiling_step("Read input data")
 
 # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
 
@@ -176,6 +191,8 @@ setup_time <- as.numeric(difftime(setup_end, setup_start, units = "secs"))
 #############################
 ### DISTANCES CALCULATION ###
 #############################
+.start_profiling_step("Process species data")
+
 dist_start <- Sys.time()
 # For non-parallel execution -> use "for" loop
 # For parallel execution -> use "foreach" loop + parallel setup
@@ -186,7 +203,8 @@ dist_start <- Sys.time()
 
 # Process species one by one
 for (species in species_vec) {
-  
+#  .start_profiling_step(paste("Process species:", species))
+
   # skip empty / NA entries
   if (is.na(species) || nchar(trimws(species)) == 0) next
    
@@ -296,11 +314,15 @@ for (species in species_vec) {
   # Save to csv file using fwrite
   data.table::fwrite(gbif_occurrences, file = gbif_file)
   cat("\n")
+#  .end_profiling_step(paste("Process species:", species))
   # Move on to next species in the loop
   next
 }
 
 cat(">>> [DONE] Finished calculating distances for all species. \n")
+
+# End process all species
+.end_profiling_step("Process species data")
 
 dist_end <- Sys.time()
 dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
@@ -311,6 +333,8 @@ dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
 ##############
 ## Plotting ##
 ##############
+
+.start_profiling_step("Generate plots")
 
 plot_start <- Sys.time()
 
@@ -423,5 +447,10 @@ total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
 # cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
 # cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
 # cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
+
+.end_profiling_step("Generate plots")
+
+# Generate final profiling report
+generate_profiling_report()
 
 unlink("output", recursive = TRUE, force = TRUE)
