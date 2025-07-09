@@ -7,7 +7,14 @@ rm(list = ls())
 source("src/profiling.R")
 
 # Initialize profiling
-.init_profiling()
+.init_profiling(
+  script_name = "AlienDetective_v2.R",
+  workers = 4,
+  data_source = "GBIF",
+  species = "Aurelia solida",
+  version = "1.0.0"
+)
+
 .start_profiling_step("Script initialization")
 
 #library(profvis)

@@ -27,14 +27,14 @@ profiling_data <- NULL
 }
 
 # Initialize profiling environment
-.init_profiling <- function() {
+#
+# @param ... Named arguments containing script metadata (e.g., script_name, workers, etc.)
+# @return Invisibly returns TRUE if successful
+.init_profiling <- function(...) {
   # Ensure all required packages are installed and loaded
   .ensure_packages()
   
-  # Initialize tictoc
-  tictoc::tic("Total execution")
-  
-  # Initialize profiling data frame
+  # Create empty profiling data frame
   assign("profiling_data", 
          data.frame(
            Step = character(0),
@@ -47,8 +47,25 @@ profiling_data <- NULL
          ),
          envir = .GlobalEnv)
   
-  # Start overall timer with a unique name
+  # Store metadata
+  metadata <- list(...)
+  if (length(metadata) > 0) {
+    assign("profiling_metadata", metadata, envir = .GlobalEnv)
+  } else {
+    assign("profiling_metadata", list(script_name = basename(rstudioapi::getSourceEditorContext()$path)), 
+           envir = .GlobalEnv)
+  }
+  
+  # Initialize timing
+  assign("profiling_start_time", Sys.time(), envir = .GlobalEnv)
+  
+  # Initialize memory tracking
+  assign("profiling_memory_usage", numeric(), envir = .GlobalEnv)
+  
+  # Initialize tictoc
   tictoc::tic("Total script execution")
+  
+  invisible(TRUE)
 }
 
 # Start profiling a step
@@ -256,6 +273,28 @@ generate_profiling_report <- function(output_dir = "profiling_reports", file_nam
   display_data$Memory_Used <- format_memory(display_data$Memory_Bytes)
   display_data <- display_data[, c("Step", "Duration_sec", "Memory_Used")]
   
+  # Get metadata if it exists
+  metadata_html <- ""
+  if (exists("profiling_metadata", envir = .GlobalEnv) && length(profiling_metadata) > 0) {
+    metadata_html <- '<div class="card mb-4">\n      <div class="card-header">\n        <i class="fas fa-info-circle me-2"></i>Script Information\n      </div>\n      <div class="card-body">\n        <div class="row g-3">\n    '
+    for (i in seq_along(profiling_metadata)) {
+      name <- names(profiling_metadata)[i]
+      if (is.null(name) || name == "") name <- paste0("Parameter ", i)
+      value <- profiling_metadata[[i]]
+      if (length(value) > 1) value <- paste(value, collapse = ", ")
+      
+      metadata_html <- paste0(metadata_html, '
+        <div class="col-md-4">
+          <div class="d-flex align-items-center">
+            <strong class="me-2">', tools::toTitleCase(gsub("_", " ", name)), ':</strong>
+            <span>', value, '</span>
+          </div>
+        </div>')
+    }
+    
+    metadata_html <- paste0(metadata_html, '\n        </div>\n      </div>\n    </div>')
+  }
+  
   # Create HTML report
   html_content <- paste0(
     '<!DOCTYPE html>\n    <html>\n    <head>\n      <title>Profiling Report - ', report_timestamp, '</title>
@@ -281,6 +320,11 @@ generate_profiling_report <- function(output_dir = "profiling_reports", file_nam
         <div class="header text-center">
           <h1>Profiling Report</h1>\n          <p class="lead mb-0">', display_timestamp, '</p>
         </div>
+        
+        <!-- Script Information Section -->
+        ', metadata_html, '
+        
+        <!-- Performance Summary Section -->
         
         <div class="row mb-4">
           <div class="col-12">
