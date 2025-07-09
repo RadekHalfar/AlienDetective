@@ -91,9 +91,8 @@ plot_data(distances_gbif_list)
 
 unlink("output", recursive = TRUE, force = TRUE)
 
-# Generate final profiling report
-generate_profiling_report(show_report = TRUE)
-
-#}) # end profvis
+# Generate final profiling report without saving
+generate_profiling_report(save_report = FALSE,
+                          show_report = TRUE)
 
 #print(pv)

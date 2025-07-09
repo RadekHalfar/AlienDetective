@@ -188,9 +188,12 @@ profiling_data <- NULL
 # Generate a profiling report
 #
 # @param output_dir Directory to save the report (default: "profiling_reports")
+# @param file_name Name of the output HTML file without extension. If NULL, a timestamp-based name will be used.
 # @param show_report Logical indicating whether to open the report in browser (default: FALSE)
-# @return The path to the generated report (invisibly)
-generate_profiling_report <- function(output_dir = "profiling_reports", show_report = FALSE) {
+# @param save_report Logical indicating whether to save the report to a file (default: TRUE)
+# @return The HTML content as a character string (invisibly if saved to file)
+generate_profiling_report <- function(output_dir = "profiling_reports", file_name = NULL, 
+                                    show_report = FALSE, save_report = TRUE) {
   if (!exists("profiling_data", envir = .GlobalEnv) || nrow(profiling_data) == 0) {
     warning("No profiling data available to generate report")
     return(invisible(NULL))
@@ -204,14 +207,19 @@ generate_profiling_report <- function(output_dir = "profiling_reports", show_rep
     NA_real_
   }
   
-  # Create output directory if it doesn't exist
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+
+  
+  # Generate report filename and timestamp
+  report_timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
+  display_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+  
+  if (is.null(file_name)) {
+    file_name <- paste0("profiling_report_", report_timestamp, ".html")
+  } else if (!grepl("\\.html$", tolower(file_name))) {
+    file_name <- paste0(file_name, ".html")
   }
   
-  # Generate timestamp for filename
-  timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-  report_path <- file.path(output_dir, paste0("profiling_report_", timestamp, ".html"))
+  report_path <- file.path(output_dir, file_name)
   
   # Generate summary statistics
   summary_stats <- .generate_summary_stats(profiling_data)
@@ -250,10 +258,7 @@ generate_profiling_report <- function(output_dir = "profiling_reports", show_rep
   
   # Create HTML report
   html_content <- paste0(
-    '<!DOCTYPE html>
-    <html>
-    <head>
-      <title>Profiling Report - ', timestamp, '</title>
+    '<!DOCTYPE html>\n    <html>\n    <head>\n      <title>Profiling Report - ', report_timestamp, '</title>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -274,8 +279,7 @@ generate_profiling_report <- function(output_dir = "profiling_reports", show_rep
     <body>
       <div class="container-fluid">
         <div class="header text-center">
-          <h1>Profiling Report</h1>
-          <p class="lead mb-0">', format(Sys.time(), '%Y-%m-%d %H:%M:%S'), '</p>
+          <h1>Profiling Report</h1>\n          <p class="lead mb-0">', display_timestamp, '</p>
         </div>
         
         <div class="row mb-4">
@@ -345,9 +349,7 @@ generate_profiling_report <- function(output_dir = "profiling_reports", show_rep
           </div>
         </div>
         
-        <div class="footer text-center">
-          <p>Report generated on ', format(Sys.time(), '%Y-%m-%d at %H:%M:%S'), '</p>
-        </div>
+        <div class="footer text-center">\n          <p>Report generated on ', display_timestamp, '</p>\n        </div>
       </div>
       
       <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -388,17 +390,30 @@ generate_profiling_report <- function(output_dir = "profiling_reports", show_rep
     html_content
   )
   
-  # Write to file
-  writeLines(html_content, report_path)
-  
-  # Open in browser if requested
-  if (isTRUE(show_report) && interactive()) {
-    utils::browseURL(report_path)
+  # Save to file if requested
+  if (isTRUE(save_report)) {
+    # Create output directory if it doesn't exist
+    if (!dir.exists(output_dir)) {
+      dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+    writeLines(html_content, report_path)
+    
+    # Open in browser if requested
+    if (isTRUE(show_report) && interactive()) {
+      utils::browseURL(report_path)
+    }
+    message("Profiling report saved to: ", normalizePath(report_path))
+    return(invisible(html_content))
+  } else {
+    # Return HTML content directly if not saving to file
+    if (isTRUE(show_report) && interactive()) {
+      temp_file <- tempfile(fileext = ".html")
+      writeLines(html_content, temp_file)
+      utils::browseURL(temp_file)
+      message("Temporary profiling report opened in browser")
+    }
+    return(html_content)
   }
-  message("Profiling report generated: ", normalizePath(report_path))
-  return(invisible(report_path))
-  message("Profiling report generated at: ", normalizePath(report_path))
-  return(invisible(report_path))
 }
 
 # Helper function to profile a code block
