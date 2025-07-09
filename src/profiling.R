@@ -155,7 +155,9 @@ profiling_data <- NULL
     ggplot2::labs(title = "Execution Time by Step", 
                  x = "Step", 
                  y = "Time (seconds)") +
-    ggplot2::theme_minimal()
+    ggplot2::theme_minimal() + 
+    ggplot2::theme(text = element_text(size = 18),
+                   legend.position = "none")
   
   # Memory usage plot
   p2 <- ggplot2::ggplot(profiling_data, 
@@ -165,9 +167,12 @@ profiling_data <- NULL
     ggplot2::geom_bar(stat = "identity") +
     ggplot2::coord_flip() +
     ggplot2::labs(title = "Memory Usage by Step", 
-                 x = "Step", 
+                 #x = "Step", 
+                 x = "", 
                  y = "Memory (MB)") +
-    ggplot2::theme_minimal()
+    ggplot2::theme_minimal() + 
+    ggplot2::theme(text = element_text(size = 18),
+                   legend.position = "none")
   
   # Combine plots
   combined_plot <- gridExtra::grid.arrange(p1, p2, ncol = 2)
@@ -180,7 +185,12 @@ profiling_data <- NULL
 }
 
 # Generate HTML report
-generate_profiling_report <- function(output_dir = "profiling_reports") {
+# Generate a profiling report
+#
+# @param output_dir Directory to save the report (default: "profiling_reports")
+# @param show_report Logical indicating whether to open the report in browser (default: FALSE)
+# @return The path to the generated report (invisibly)
+generate_profiling_report <- function(output_dir = "profiling_reports", show_report = FALSE) {
   if (!exists("profiling_data", envir = .GlobalEnv) || nrow(profiling_data) == 0) {
     warning("No profiling data available to generate report")
     return(invisible(NULL))
@@ -268,22 +278,20 @@ generate_profiling_report <- function(output_dir = "profiling_reports") {
           <p class="lead mb-0">', format(Sys.time(), '%Y-%m-%d %H:%M:%S'), '</p>
         </div>
         
-        <div class="row">
-          <div class="col-md-12">
-            <div class="card">
-              <div class="card-header">
-                <i class="fas fa-chart-line me-2"></i>Summary
-              </div>
-              <div class="card-body">
-                <div class="row">',
+        <div class="row mb-4">
+          <div class="col-12">
+            <h2 class="h4 mb-3"><i class="fas fa-chart-line me-2"></i>Performance Summary</h2>
+          </div>
+          <div class="col-12">
+            <div class="row g-3">',
                 if (!is.null(summary_stats)) {
                   paste0(sapply(seq_len(nrow(summary_stats)), function(i) {
                     paste0(
-                      '<div class="col-md-3 mb-3">
-                        <div class="card summary-card h-100">
-                          <div class="card-body">
-                            <h5 class="card-title">', summary_stats$Metric[i], '</h5>
-                            <p class="card-text display-6">', summary_stats$Value[i], '</p>
+                      '<div class="col">
+                        <div class="card summary-card h-100 border-0 shadow-sm">
+                          <div class="card-body text-center p-3">
+                            <h6 class="card-subtitle mb-2 text-muted">', summary_stats$Metric[i], '</h6>
+                            <p class="card-title mb-0 fs-4 fw-bold">', summary_stats$Value[i], '</p>
                           </div>
                         </div>
                       </div>'
@@ -383,8 +391,8 @@ generate_profiling_report <- function(output_dir = "profiling_reports") {
   # Write to file
   writeLines(html_content, report_path)
   
-  # Open in browser
-  if (interactive()) {
+  # Open in browser if requested
+  if (isTRUE(show_report) && interactive()) {
     utils::browseURL(report_path)
   }
   message("Profiling report generated: ", normalizePath(report_path))
