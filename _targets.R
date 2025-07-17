@@ -12,7 +12,7 @@ library(targets)
 # Add/remove packages here as your analysis evolves.
 tar_option_set(packages = c(
   "data.table", "sf", "sp", "gdistance", "geodist", "raster", "fasterize",
-  "ggplot2", "rnaturalearth", "rnaturalearthdata", "geosphere"
+  "ggplot2", "rnaturalearth", "rnaturalearthdata", "geosphere", "fs"
 ))
 
 # Automatically source helper files in src/ that start with "functions_" ---------
@@ -72,10 +72,12 @@ list(
   tar_target(distances_gbif_list,
              create_gbif_occurrences_file(species, gbif_occ, distances_merged)),
 
-  # 11. Final plots (side-effect)
-  tar_target(plotting,
+  # 11. Generate plots and track all files in output directory
+  tar_target(output_files,
              {
+               dir.create(paths$output_dir, showWarnings = FALSE, recursive = TRUE)
                plot_data(distances_gbif_list)
-               NULL    # targets should return an object; NULL is fine for side-effects
-             })
+               fs::dir_ls(paths$output_dir)   # return vector of file paths
+             },
+             format = "file")
 )
