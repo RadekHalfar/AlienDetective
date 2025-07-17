@@ -18,9 +18,9 @@ make_hist_plot <- function(data,
   max_count <- max(hist(data[[x_col]], breaks = hist_breaks, plot = FALSE)$counts, na.rm = TRUE)
 
   # Dynamically build aesthetic mapping
-  mapping <- ggplot2::aes_string(x = x_col)
+  mapping <- ggplot2::aes(x = .data[[x_col]])
   if (!is.null(fill_col)) {
-    mapping <- ggplot2::aes_string(x = x_col, fill = fill_col)
+    mapping <- ggplot2::aes(x = .data[[x_col]], fill = .data[[fill_col]])
   }
 
   ggplot2::ggplot(data, mapping) +
