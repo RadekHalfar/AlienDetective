@@ -4,7 +4,7 @@ setwd("C:/Users/radek/Documents/IT4I_projects/BioFlow/AlienDetective")
 rm(list = ls())
 
 # Load profiling functions
-source("src/profiling.R")
+library("profiling")
 
 # Initialize profiling
 .init_profiling(
