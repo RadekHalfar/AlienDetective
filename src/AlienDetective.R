@@ -1,456 +1,105 @@
+setwd("C:/Users/radek/Documents/IT4I_projects/BioFlow/AlienDetective")
+
 # Clear workspace
 rm(list = ls())
 
-# AlienDetective.R
-# Main script
-
 # Load profiling functions
-source("src/profiling.R")
+library("profiling")
 
 # Initialize profiling
-.init_profiling()
+.init_profiling(
+  script_name = "AlienDetective.R",
+  workers = 4,
+  data_source = "GBIF",
+  species = "Aurelia solida",
+  version = "1.0.0"
+)
+
 .start_profiling_step("Script initialization")
 
-# Load required packages
-if (!requireNamespace("data.table", quietly = TRUE)) {
-  install.packages("data.table")
-}
-library(data.table)
+#library(profvis)
 
-#############
-### SETUP ###
-#############
-setup_start <- Sys.time()
-# Define number of cores  (place in comments for use on Windows OS)
-# num_cores <- 4
-# if (!is.numeric(num_cores) || num_cores <= 0 || num_cores != floor(num_cores)) {
-#   stop("Number of cores must be a whole number!")
-# }
+# Start profiler: captures time & memory usage per function/line
+#pv <- profvis({
 
-# Set CRAN mirror for downloading packages on server
-# options(repos = c(CRAN = "https://cloud.r-project.org"))
+# load functions
+lapply(c("setup", "computation", "plotting", "data_manipulation"),
+       function(f) source(file.path("src", paste0("functions_", f, ".R"))))
 
-#setwd("~/AlienDetective")
-source("src/functions.R")
-
-# Reset graphics settings
-graphics.off()
-
-# NB! No packages loaded here, only installed if missing. Better to use explicit namespaces instead [e.g. raster::extract() rather than just extract()].
-# That way it's easier to maintain the code and see which packages are actually required as development progresses, and you also avoid clashes between
-# package namespaces, making sure that the correct function is always used regardless of which other packages the user has installed and loaded.
-cat(">>> [INIT] Checking for required packages...\n")
-# Core packages currently required
-packages <- c(
-  "rgbif", "sf", "sp", "gdistance", "geodist", "raster", "fasterize",
-  "ggplot2", "rnaturalearth", "rnaturalearthdata", "geosphere"
-)
-
-# Optional extras if you re-enable parallelism or leaflet maps later:
-# extras <- c("dplyr", "foreach", "doParallel", "leaflet", "htmlwidgets", "tidyr")
-# packages <- c(packages, extras)
-
-# Install missing packages
-missing_pkgs <- setdiff(packages, rownames(installed.packages()))
-if (length(missing_pkgs) > 0) {
-  install.packages(missing_pkgs)
-}
-
-# Load all packages
-invisible(lapply(packages, library, character.only = TRUE, quietly = TRUE))
-
-# Parse command-line arguments with sensible defaults
-arg_defaults <- c(
-  file.path("data", "Species_Location_NIS.csv"),      # species_location_path
-  file.path("data", "Coordinates_NIS.csv"),            # location_coordinates_path
-  file.path("data", "rasterized_land_polygons.rds"),   # rasterized_path
-  file.path("data", "cost_matrix.rds"),                # cost_matrix_path
-  "output"                                              # output_dir
-)
-
-args <- commandArgs(trailingOnly = TRUE)
-# Use defaults if no args supplied
-if (length(args) == 0) args <- arg_defaults
-# Pad with defaults if fewer than expected
-if (length(args) < length(arg_defaults)) {
-  args <- c(args, arg_defaults[(length(args) + 1):length(arg_defaults)])
-}
-
-# Assign to named variables in the current environment
-list2env(setNames(as.list(args), c("species_location_path", "location_coordinates_path", 
-                          "rasterized_path", "cost_matrix_path", "output_dir")),
-         envir = environment())
+# setup workspace
+paths <- setup_workspace()
 
 # End initialization profiling
 .end_profiling_step("Script initialization")
 
+# Read input data
 .start_profiling_step("Read input data")
 
-# Read species-location presence/absence matrix using data.table
-species_location      <- data.table::fread(species_location_path,  sep = ";")
-# If there are more than one row per species, keep only the first row for each species
-species_location      <- species_location[!duplicated(species_location, by = names(species_location)[1])]
-location_coordinates  <- data.table::fread(location_coordinates_path, sep = ";")
-# Explicitly ensure both are data.table objects (one-time conversion)
-data.table::setDT(species_location)
-data.table::setDT(location_coordinates)
-
-# Set keys for faster lookups
-data.table::setkeyv(species_location, names(species_location)[1])
-data.table::setkey(location_coordinates, "Observatory.ID")
+# Get species to analyze
+species <- get_species(paths)
 
 # End read input data profiling
-.end_profiling_step("Read input data")
+.end_profiling_step("Read input data")# create safe name
+species$safe_name <- gsub(" ", "_", species$species_vec)
 
-# INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
-
-# Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-species_subset <- c("Aurelia solida")
-species_location <- species_location[which(species_location$Specieslist %in% species_subset),]
-#species_location <- species_location[c(2, 10, 57),] # Or subset a few species to try at random
-
-# Create a simple character vector of species names for easy iteration
-species_vec <- as.character(species_location[[1]])
-
-required_columns <- c("decimalLatitude", "decimalLongitude", "year", "month", "country")
-
-#########################
-### MAP CONFIGURATION ###
-#########################
-
-# Load rasterized world map if it exists, otherwise load custom vector shapefile and rasterize it
-cat(">>> [MAP] Loading world map...\n")
-
-if(file.exists(rasterized_path)) {
-  r <- readRDS(rasterized_path)
-} else {
-  # Read vector map as sf object
-  #land_polygons <- sf::st_read(land_polygons_path)
-  land_polygons <- rnaturalearth::ne_countries(scale = "large", returnclass = "sf")
-  cat(">>> [MAP] Rasterizing land polygons...\n")
-  # Create raster
-  r <- raster::raster(raster::extent(-180, 180, -90, 90), crs = sp::CRS("+init=EPSG:4326"), resolution = 0.1)
-  # Rasterize vector map using fasterize
-  r <- fasterize::fasterize(land_polygons, r, field = NULL, fun = "max")
-  # Set sea cells to value 1 and land cells to NA (Opposite of what fasterize outputs)
-  r <- raster::calc(r, function(x) ifelse(is.na(x), 1, NA))
-  saveRDS(r, rasterized_path)
-  rm(land_polygons)
-  cat(">>> [MAP] Rasterization done. Saved raster to \"", file.path(getwd(), rasterized_path), "\"\n")
-}
-
-if (file.exists(cost_matrix_path)) {
-  cat(">>> [MAP] Loading cost matrix...\n")
-  cost_matrix <- readRDS(cost_matrix_path)
-} else {
-  cat(">>> [MAP] Generating cost matrix...\n")
-  # Create a transition object for adjacent cells
-  cost_matrix <- gdistance::transition(r, transitionFunction = mean, directions = 16)
-  # Set infinite costs to NA to prevent travel through these cells
-  cost_matrix <- gdistance::geoCorrection(cost_matrix, type = "c", scl = FALSE)
-  # Save transition matrix
-  saveRDS(cost_matrix, file = cost_matrix_path)
-  cat(">>> [MAP] Saved cost matrix to \"", file.path(getwd(), cost_matrix_path), "\"\n")
-}
-
-####################################
-### Check input coordinates file ###
-####################################
-# Check if input coordinates are in sea, if not, move them to sea
-cat(">>> [COORD] Checking if input coordinates are in sea ...\n")
-for (i in 1:nrow(location_coordinates)) {
-  loc_name <- location_coordinates$Observatory.ID[i]
-  longitude <- as.numeric(gsub(",", ".", location_coordinates$Longitude[i]))
-  latitude <- as.numeric(gsub(",", ".", location_coordinates$Latitude[i]))  
-  #cat("Checking", loc_name,": latitude", latitude, ", longitude", longitude, "\n")
-  
-  if (is_on_land(latitude, longitude)) {
-    #cat(loc_name, "is on land, searching nearest sea coordinates...\n")
-    moved <- move_to_sea(latitude, longitude)
-    
-    if (is.null(moved)) {
-      #cat("No valid sea coordinates found\n")
-      message(loc_name, " is on land, no valid sea coordinates found")
-    } else {
-      # Update df with coordinates moved point
-      location_coordinates$Longitude[i] <- moved$coords[1]
-      location_coordinates$Latitude[i] <- moved$coords[2]
-      dist <- round((moved$dist/1000), 2)
-      #cat("Updated", loc_name, "to", location_coordinates$Latitude[i], ", ", location_coordinates$Longitude[i], "; moved", dist, "km.\n")
-    }
-  } else {
-    #cat(loc_name, "is already in sea\n")
+# create output directories
+species$directory <- file.path(paths$output_dir, species$safe_name)
+sapply(species$directory, function(dir) {
+  if (!dir.exists(dir)) {
+    dir.create(dir, recursive = TRUE)
   }
-  #cat("\n")
-}
-#cat(">>> [DONE] All coordinates updated to nearest sea point\n")
+})
 
-setup_end <- Sys.time()
-setup_time <- as.numeric(difftime(setup_end, setup_start, units = "secs"))
+# create gbif file name
+species$gbif_file <- file.path(species$directory, paste0(species$safe_name, ".csv"))
 
-#############################
-### DISTANCES CALCULATION ###
-#############################
+# get world map
+r <- get_world_map(paths)
+
+# get cost matrix
+cost_matrix <- get_cost_matrix(paths)
+
+# Check input coordinates file
+species$location_coordinates <- check_coordinates(species$location_coordinates, r, cost_matrix)
+
 .start_profiling_step("Process species data")
 
-dist_start <- Sys.time()
-# For non-parallel execution -> use "for" loop
-# For parallel execution -> use "foreach" loop + parallel setup
+# get gbif data
+gbif_data <- gbif_data(species)
 
-# Setup parallelisation (place in comments for use on Windows OS)
-# cluster <- makeCluster(num_cores)
-# registerDoParallel(cluster)
+# get missing locations for distance computation
+missing_locs <- get_location(species, gbif_data)
 
-# Process species one by one
-for (species in species_vec) {
-#  .start_profiling_step(paste("Process species:", species))
+unique_coords <- process_gbif_coords(gbif_data, r, cost_matrix)
 
-  # skip empty / NA entries
-  if (is.na(species) || nchar(trimws(species)) == 0) next
-   
-  # Process GBIF data for the species
-  safe_name <- gsub(" ", "_", species)
-  species_dir <- file.path(output_dir, safe_name)
-  
-  # Ensure species_dir exists
-  if (!dir.exists(species_dir)) {
-    dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
-  }
-  
-  gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
-  
-  # Load or fetch GBIF data
-  if (file.exists(gbif_file)) {
-    #cat(">>> [GBIF] Loading GBIF data for", species, "\n")
-    gbif_occurrences <- data.table::fread(gbif_file)
-  } else {
-    #cat(">>> [GBIF] Fetching GBIF data for", species, "\n")
-    gbif_occurrences <- fetch_gbif_data(species, fields = required_columns)
-    if (is.null(gbif_occurrences)) {
-      message("[GBIF] No occurrence records for ", species, " – skipping.")
-      next
-    }
-    
-    dir.create(species_dir, recursive = TRUE, showWarnings = FALSE)
-    data.table::fwrite(gbif_occurrences, file = gbif_file)
-  }
-  
-  # Ensure gbif_occurrences is a data.table (single call, no repeated checks)
-  data.table::setDT(gbif_occurrences)
-  
-  # Determine which locations still need distance computation
-  species_row <- species_location[Specieslist == species]
-  presence_vals <- as.numeric(species_row[, -1])
-  detected_locs <- names(species_row)[-1][!is.na(presence_vals) & presence_vals >= 1]
+# create data table for row wise calculation of calculate.distances function
+distances_dt <- add_missing_dist(species, missing_locs, unique_coords)
 
-  existing_dist_cols <- grep("(_seaway|_geodesic)$", names(gbif_occurrences), value = TRUE)
-  processed_locs <- unique(sub("_(seaway|geodesic)$", "", existing_dist_cols))
+# compute distance for missing locations
+dists <- calculate.distances(
+  data = distances_dt,
+  raster_map = r,
+  cost_matrix = cost_matrix
+)
 
-  missing_locs <- setdiff(detected_locs, processed_locs)
+# merge results
+distances_dt[, `:=`(dist_seaway    = dists$sea_distances,
+                    dist_geodesic  = dists$geodesic_distances)]
 
-  # Coordinate preprocessing (move to sea) – always ensure lat/lon moved columns exist
-  #cat(">>> [GBIF] Ensuring GBIF occurrence coordinates are at sea\n")
-  
-  # Get unique coordinates using data.table
-  unique_coords <- unique(gbif_occurrences[, .(latitude, longitude)])
-  
-  # Apply processing to all coordinates using data.table's := operator
-  processed_list <- lapply(1:nrow(unique_coords), function(i) {
-    process_coords(unique_coords$latitude[i], unique_coords$longitude[i])
-  })
-  
-  # Combine results using rbindlist
-  results <- data.table::rbindlist(processed_list, fill = TRUE)
-  unique_coords <- cbind(unique_coords, results)
-  
-  # Drop duplicated column names that may arise from earlier cbind operations
-  dup_uc <- duplicated(names(unique_coords))
-  if (any(dup_uc)) {
-    warning("Removing duplicated columns from unique_coords: ",
-            paste(names(unique_coords)[dup_uc], collapse = ", "))
-    unique_coords <- unique_coords[, !dup_uc, with = FALSE]
-  }
-  
-  # Report statistics
-  moved_count <- sum(!is.na(unique_coords$dist_moved) & unique_coords$dist_moved > 0)
-  failed_count <- sum(is.na(unique_coords$dist_moved))
-  
-  #cat(moved_count, "of", nrow(unique_coords), "coordinate pairs were moved to sea.\n")
-  if (failed_count > 0) {
-    #cat("Moving to sea failed for", failed_count, "coordinate pairs\n")
-    message("Species ", species, ": moving to sea failed for ", failed_count, " coordinate pairs.")
-  }
-  
-  print(missing_locs)
-  # Process locations and calculate distances only for missing_locs
-  if (length(missing_locs) > 0) {
-    unique_coords <- process_species_locations(
-      species = species,
-      species_location = species_location,
-      location_coordinates = location_coordinates,
-      unique_coords = unique_coords,
-      r = r,
-      cost_matrix = cost_matrix,
-      locations_to_process = missing_locs
-    )
-  }
-  
-  # Update-join: fill only missing values or add new columns without creating duplicates
-  key_cols <- c("latitude", "longitude")
-  cols_uc  <- setdiff(names(unique_coords), key_cols)
+# create new gbif occurences file
+distances_gbif_list <- create_gbif_occurrences_file(species, gbif_data, distances_dt)
 
-  for (col in cols_uc) {
-    if (col %in% names(gbif_occurrences)) {
-      # Column exists – fill NAs only
-      gbif_occurrences[unique_coords, on = .(latitude, longitude),
-                       (col) := data.table::fifelse(is.na(get(col)), get(paste0("i.", col)), get(col))]
-    } else {
-      # Column missing – bring it over entirely
-      gbif_occurrences[unique_coords, on = .(latitude, longitude),
-                       (col) := get(paste0("i.", col))]
-    }
-  }
-  
-  # Save to csv file using fwrite
-  data.table::fwrite(gbif_occurrences, file = gbif_file)
-  cat("\n")
-#  .end_profiling_step(paste("Process species:", species))
-  # Move on to next species in the loop
-  next
-}
-
-cat(">>> [DONE] Finished calculating distances for all species. \n")
-
-# End process all species
 .end_profiling_step("Process species data")
 
-dist_end <- Sys.time()
-dist_time <- as.numeric(difftime(dist_end, dist_start, units = "secs"))
-
-# Close the cluster   (place in comments for use on Windows OS)
-# stopCluster(cluster)
-
-##############
-## Plotting ##
-##############
-
+# Plotting
 .start_profiling_step("Generate plots")
-
-plot_start <- Sys.time()
-
-# Iterate over species names for plotting
-for (species in species_vec) {
-  if (is.na(species) || nchar(trimws(species)) == 0) next
-  
-  safe_name <- gsub(" ", "_", species)  # Change spaces to underscores for filenames
-  species_dir <- file.path(output_dir, safe_name)
-  gbif_file <- file.path(species_dir, paste0(safe_name, ".csv"))
-  
-  # If the file exists, execute following lines
-  if (file.exists(gbif_file)) {
-    # Fast read via data.table
-    distance_dt <- data.table::fread(gbif_file)
-    
-    # Identify distance columns
-    dist_cols <- grep("(_seaway|_geodesic)$", names(distance_dt), value = TRUE)
-    
-    # Skip plotting if no distance columns present
-    if (length(dist_cols) == 0) {
-      warning(sprintf("No distance columns found (seaway/geodesic) for species '%s'. Skipping.", species))
-      next
-    }
-
-    # ensure all distance columns are numeric before melt
-    distance_dt[ , (dist_cols) := lapply(.SD, as.numeric), .SDcols = dist_cols]
-
-    # Melt to long format with value column 'x'
-    long_dt <- data.table::melt(
-      distance_dt,
-      measure.vars = dist_cols,
-      variable.name = "loc_type",
-      value.name   = "x",
-      variable.factor = FALSE
-    )
-    # Extract location and distance type from column name
-    long_dt[, `:=`(
-      DistanceType = fifelse(grepl("_seaway$", loc_type), "seaway", "geodesic"),
-      location     = sub("_(seaway|geodesic)$", "", loc_type)
-    )]
-    long_dt[, loc_type := NULL]
-    
-    # Year category via cut (vectorised)
-    brks  <- c(1965, 1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025)
-    labs  <- paste(head(brks, -1), tail(brks, -1), sep = "-")
-    long_dt[, year_category := cut(year, breaks = brks, labels = labs, right = FALSE)]
-    
-    # Split into sea / geo tables & clean NAs / Inf once
-    long_sea <- long_dt[DistanceType == "seaway" & !is.na(x) & is.finite(x)]
-    long_geo <- long_dt[DistanceType == "geodesic"]
-    
-  } else {
-    warning("No output directory found for species \"", species, "\". Skipping plotting.")
-    next
-  }
-  
-  #Make a graph of all locations where that species is found
-  country_final_plot <- country.final(
-    species = species,
-    data    = long_sea,
-    output_dir = species_dir)
-  
-  #Make a for loop that goes over every occurence location to make seperate graphs
-  locs <- unique(long_sea$location)
-  for (loc in locs) {
-    sea_loc_data <- long_sea[location == loc]
-    geo_loc_data <- long_geo[location == loc]
-    combined_distances <- data.table::rbindlist(list(sea_loc_data, geo_loc_data), use.names = TRUE)
-    
-    # Plot functions by location
-    plot_dist_sea <- plot.dist.sea(
-      species = species,
-      location = loc,
-      data     = sea_loc_data,
-      output_dir = species_dir
-    )
-    
-    plot_both <- plot.dist.both(
-      species = species,
-      location = loc,
-      data     = combined_distances,
-      output_dir = species_dir
-    )
-    
-    plot_country <- plot.dist.by.country(
-      species = species,
-      location = loc,
-      data     = sea_loc_data,
-      output_dir = species_dir
-    )
-    
-    plot_year <- plot.dist.by.year(
-      species = species,
-      location = loc,
-      data     = sea_loc_data,
-      output_dir = species_dir
-    )
-  }
-}
-
-plot_end <- Sys.time()
-plot_time <- as.numeric(difftime(plot_end, plot_start, units = "secs"))
-# cat(">>> [DONE] Finished plotting for all species.\n")
-
-end_time <- Sys.time()
-total_time <- as.numeric(difftime(end_time, setup_start, units = "secs"))
-
-# cat(">>> [TIMING] Setup completed in", round(setup_time, 2), "seconds.\n")
-# cat(">>> [TIMING] Distance calculations completed in", round(dist_time, 2), "seconds.\n")
-# cat(">>> [TIMING] Plotting completed in", round(plot_time, 2), "seconds.\n")
-# cat(">>> [TIMING] Total runtime: ", round(total_time, 2), "seconds.\n")
-
+plot_data(distances_gbif_list)
 .end_profiling_step("Generate plots")
 
-# Generate final profiling report
-generate_profiling_report()
-
 unlink("output", recursive = TRUE, force = TRUE)
+
+# Generate final profiling report without saving
+generate_profiling_report(save_report = FALSE,
+                          show_report = TRUE)
+
+#print(pv)

@@ -4,3 +4,4 @@
 transitMatrix.rds
 Input/land_polygons/*
 profiling_reports/*
+output/*
