@@ -96,7 +96,7 @@ distances_gbif_list <- create_gbif_occurrences_file(species, gbif_data, distance
 plot_data(distances_gbif_list)
 .end_profiling_step("Generate plots")
 
-unlink("output", recursive = TRUE, force = TRUE)
+#unlink("output", recursive = TRUE, force = TRUE)
 
 # Generate final profiling report without saving
 generate_profiling_report(save_report = FALSE,
