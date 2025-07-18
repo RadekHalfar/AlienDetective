@@ -10,14 +10,52 @@ library(targets)
 
 # Packages needed by every target ------------------------------------------------
 # Add/remove packages here as your analysis evolves.
-tar_option_set(packages = c(
+tar_option_set(
+  packages = c(
   "data.table", "sf", "sp", "gdistance", "geodist", "raster", "fasterize",
   "ggplot2", "rnaturalearth", "rnaturalearthdata", "geosphere"
-))
+  ),
+  resources = tar_resources(
+    future = tar_resources_future(plan = "sequential")
+  )
+)
 
 # Automatically source helper files in src/ that start with "functions_" ---------
 # This keeps your helper code modular while letting {targets} track changes.
 tar_source(files = list.files("src", pattern = "^functions_.*\\.R$", full.names = TRUE))
+
+# ---- Parallel backend selection ----------------------------------------------
+#
+# How to run the pipeline
+# ----------------------
+#   • Sequential run (single R process)
+#       targets::tar_make()
+#
+#   • Local workstation (default multisession via {future})
+#       targets::tar_make_future()
+#
+#   • HPC/Slurm cluster using {clustermq}
+#       Sys.setenv(ALIEN_PARALLEL = "hpc")   # or export ALIEN_PARALLEL=hpc in the job script
+#       targets::tar_make_clustermq()
+#
+# The `ALIEN_PARALLEL` variable only tells this file which backend to configure;
+# you must still call the matching tar_make_*() function from your R session or
+# batch script. Adjust `workers` (local) or `n_jobs` (Slurm) in the section
+# below to match your resources.
+#
+# Set the environment variable `ALIEN_PARALLEL=hpc` (e.g. in .Renviron or the
+# job script) to dispatch targets as separate Slurm jobs via {clustermq}.
+# Otherwise the pipeline falls back to a local multisession pool via {future}.
+if (tolower(Sys.getenv("ALIEN_PARALLEL")) == "hpc") {
+  suppressPackageStartupMessages(library(clustermq))
+  # Configure clustermq for the scheduler (writes ~/.clustermq_slurm.tmpl once).
+  try(cmq_enable_hpc(template = "slurm"), silent = TRUE)
+  tar_option_set(resources = list(clustermq = list(n_jobs = 200))) # adjust as needed
+} else {
+  suppressPackageStartupMessages(library(future))
+  plan(multisession, workers = max(1, parallel::detectCores() - 1))
+}
+
 
 # Pipeline -----------------------------------------------------------------------
 list(
@@ -32,50 +70,82 @@ list(
     species <- species_raw
     species$safe_name <- gsub(" ", "_", species$species_vec)
     species$directory <- file.path(paths$output_dir, species$safe_name)
-    if (!dir.exists(species$directory)) dir.create(species$directory, recursive = TRUE)
+    # Create any directories that do not yet exist (vector-safe)
+    missing_dirs <- species$directory[!dir.exists(species$directory)]
+    if (length(missing_dirs)) {
+      for (d in missing_dirs) {
+        if (!is.na(d) && nzchar(d)) dir.create(d, recursive = TRUE, showWarnings = FALSE)
+      }
+    }
     species$gbif_file <- file.path(species$directory, paste0(species$safe_name, ".csv"))
     species
   }),
 
   # 3. Spatial data prerequisites (world map raster + cost matrix)
   tar_target(raster_map, get_world_map(paths)),
-  tar_target(cost_matrix, get_cost_matrix(paths)),
+  tar_target(cost_matrix, get_cost_matrix(paths, raster_map)),
 
   # 4. GBIF occurrences download/cache per species
   tar_target(gbif_occ, gbif_data(species)),
 
   # 5. Coordinate processing & land-to-sea correction
-  tar_target(coords, process_gbif_coords(gbif_occ, raster_map, cost_matrix)),
+  tar_target(coords, process_gbif_coords(gbif_occ, raster_map, cost_matrix),
+    resources = tar_resources(
+      future = tar_resources_future(plan = "multisession")
+    )
+  ),
 
   # 6. Determine missing locations that need distance computation
   tar_target(missing_locs, get_location(species, gbif_occ)),
 
   # 7. Prepare distance data table
-  tar_target(distances_dt, add_missing_dist(species, missing_locs, coords)),
+  tar_target(distances_dt,
+             if (nrow(missing_locs) == 0) {
+               NULL   # no missing locations, nothing to prepare
+             } else {
+               add_missing_dist(species, missing_locs, coords)
+             }),
 
   # 8. Compute seaway & geodesic distances (heavy; parallelisable)
-  tar_target(dists, calculate.distances(
-    data        = distances_dt,
-    raster_map  = raster_map,
-    cost_matrix = cost_matrix
-  )),
+  tar_target(dists,
+             if (is.null(distances_dt)) {
+               list(sea_distances = NULL, geodesic_distances = NULL)
+             } else {
+               calculate.distances(
+                 data        = distances_dt,
+                 raster_map  = raster_map,
+                 cost_matrix = cost_matrix
+               )
+             }
+  #resources = tar_resources(
+  #  future = tar_resources_future(plan = "multisession")
+  #)
+ ),
 
   # 9. Merge distances back to data table
   tar_target(distances_merged,
-             {
-               distances_dt[, `:=`(dist_seaway   = dists$sea_distances,
-                                     dist_geodesic = dists$geodesic_distances)]
+             if (is.null(distances_dt)) {
+               NULL
+             } else {
+               distances_dt[, dist_seaway   := if (!is.null(dists$sea_distances)) dists$sea_distances else NA_real_]
+               distances_dt[, dist_geodesic := if (!is.null(dists$geodesic_distances)) dists$geodesic_distances else NA_real_]
                distances_dt
              }),
 
   # 10. Write species-specific CSV of occurrences with distances
   tar_target(distances_gbif_list,
-             create_gbif_occurrences_file(species, gbif_occ, distances_merged)),
+             if (is.null(distances_merged)) {
+               NULL
+             } else {
+               create_gbif_occurrences_file(species, gbif_occ, distances_merged)
+             }),
 
   # 11. Final plots (side-effect)
   tar_target(plotting,
              {
-               plot_data(distances_gbif_list)
+               if (!is.null(distances_gbif_list)) {
+                 plot_data(distances_gbif_list)
+               }
                NULL    # targets should return an object; NULL is fine for side-effects
              })
 )

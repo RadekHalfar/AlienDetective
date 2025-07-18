@@ -108,12 +108,12 @@ get_world_map <- function(paths){
 }
 
 # get cost matrix
-get_cost_matrix <- function(paths){
+get_cost_matrix <- function(paths, raster_map){
   if (file.exists(paths$cost_matrix_path)) {
     cost_matrix <- readRDS(paths$cost_matrix_path)
   } else {
     # Create a transition object for adjacent cells
-    cost_matrix <- gdistance::transition(r, transitionFunction = mean, directions = 16)
+    cost_matrix <- gdistance::transition(raster_map, transitionFunction = mean, directions = 16)
     # Set infinite costs to NA to prevent travel through these cells
     cost_matrix <- gdistance::geoCorrection(cost_matrix, type = "c", scl = FALSE)
     # Save transition matrix
