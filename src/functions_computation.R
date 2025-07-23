@@ -72,25 +72,23 @@ is_on_land <- function(lat, lon, r) {
 # *all* sea-cell coordinates and the KD-tree index are done only once and cached
 # in the global environment, so repeated calls are cheap.
 # Returns list(coords = c(lon, lat), dist = distance_m).
-move_to_sea <- function(lat, lon, r, cost_matrix) {
-  # ---------------------------------------------------------
-  # Build (or retrieve) cached sea-cell coordinate matrix
-  # ---------------------------------------------------------
-  if (!exists(".sea_cell_coords", envir = .GlobalEnv, inherits = FALSE)) {
+move_to_sea <- function(lat, lon, r, cost_matrix, sea_cell_coords = NULL) {
+  # -------------------------------------------------------------------
+  # Build sea-cell coordinate matrix once, or reuse what the caller sent
+  # -------------------------------------------------------------------
+  if (is.null(sea_cell_coords)) {
     trans_matrix <- gdistance::transitionMatrix(cost_matrix)
     connected_cells <- which(rowSums(trans_matrix != 0) > 0)
     coords <- raster::xyFromCell(r, connected_cells)
     sea_idx <- which(raster::extract(r, coords) == 1)
     if (!length(sea_idx)) return(NULL)
-    .sea_cell_coords <- coords[sea_idx, , drop = FALSE]
-    assign(".sea_cell_coords", .sea_cell_coords, envir = .GlobalEnv)
-  } else {
-    .sea_cell_coords <- get(".sea_cell_coords", envir = .GlobalEnv, inherits = FALSE)
+    sea_cell_coords <- coords[sea_idx, , drop = FALSE]
   }
   
-  # Filter to only retain sea cells
-  is_sea <- raster::extract(r, .sea_cell_coords) == 1
-  sea_coords <- .sea_cell_coords[is_sea, , drop = FALSE]
+  # Filter to only retain sea cells (safety check in case caller supplied
+  # a matrix that is out-of-date for this raster)
+  is_sea <- raster::extract(r, sea_cell_coords) == 1
+  sea_coords <- sea_cell_coords[is_sea, , drop = FALSE]
   
   if (nrow(sea_coords) == 0) {
     return(NULL)  # failure signal
@@ -121,7 +119,8 @@ move_to_sea <- function(lat, lon, r, cost_matrix) {
       new_coords <- sea_coords_radius[nearest_idx, , drop = FALSE]
       return(list(
         coords = as.vector(new_coords),
-        dist = dist
+        dist = dist,
+        sea_cell_coords = sea_cell_coords
       ))
     }
     # Otherwise, continues with next larger radius
@@ -137,7 +136,6 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
                 geodesic_distances = NULL,
                 error_messages = "Input table is NULL or empty"))
   }
-
   required_cols <- c("Latitude_missing_locs", "Longitude_missing_locs",
                      "latitude", "longitude",
                      "latitude_moved", "longitude_moved")
@@ -150,7 +148,6 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
     # Build origin (missing_locs) & destination (occurrence) coordinates
     origin_lon <- data$Longitude_missing_locs
     origin_lat <- data$Latitude_missing_locs
-
     dest_lon <- ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved)
     dest_lat <- ifelse(is.na(data$latitude_moved),  data$latitude,  data$latitude_moved)
 
@@ -216,6 +213,9 @@ process_coords <- function(coords_dt, r, cost_matrix) {
   chunk_size <- 1000
   n_chunks <- ceiling(nrow(result) / chunk_size)
   
+  # Reusable sea-cell coordinate cache local to this call
+  sea_cell_coords <- NULL
+  
   for (i in seq_len(n_chunks)) {
     idx_start <- (i - 1) * chunk_size + 1
     idx_end <- min(i * chunk_size, nrow(result))
@@ -223,26 +223,32 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     
     # Determine whether each point is on land
     chunk[, is_land := mapply(is_on_land, latitude, longitude, MoreArgs = list(r = r))]
-    
     # Handle points on land
     land_idx <- which(chunk$is_land)
+    moved <- vector("list", length(land_idx))
     if (length(land_idx) > 0) {
-      moved <- lapply(land_idx, function(i) {
-        move_to_sea(chunk$latitude[i], chunk$longitude[i], r, cost_matrix)
-      })
-      
-      # Update moved coordinates
-      for (j in seq_along(land_idx)) {
-        idx <- land_idx[j]
-        if (!is.null(moved[[j]])) {
-          set(chunk, i = idx, j = "latitude_moved", value = moved[[j]]$coords[2])
-          set(chunk, i = idx, j = "longitude_moved", value = moved[[j]]$coords[1])
-          set(chunk, i = idx, j = "dist_moved", value = round(moved[[j]]$dist/1000, 2))
-        } else {
-          # If move_to_sea failed, keep original coords with NA for moved columns
-          set(chunk, i = idx, j = "latitude_moved", value = chunk$latitude[idx])
-          set(chunk, i = idx, j = "longitude_moved", value = chunk$longitude[idx])
+      for (k in seq_along(land_idx)) {
+        idx_pt <- land_idx[k]
+        res <- move_to_sea(chunk$latitude[idx_pt], chunk$longitude[idx_pt], r, cost_matrix, sea_cell_coords)      
+        # update local cache for subsequent iterations (simple assignment)
+        if (!is.null(res$sea_cell_coords)) {
+          sea_cell_coords <- res$sea_cell_coords
         }
+        moved[[k]] <- res
+      }
+    }
+    
+    # Update moved coordinates
+    for (j in seq_along(land_idx)) {
+      idx <- land_idx[j]
+      if (!is.null(moved[[j]])) {
+        set(chunk, i = idx, j = "latitude_moved", value = moved[[j]]$coords[2])
+        set(chunk, i = idx, j = "longitude_moved", value = moved[[j]]$coords[1])
+        set(chunk, i = idx, j = "dist_moved", value = round(moved[[j]]$dist/1000, 2))
+      } else {
+        # If move_to_sea failed, keep original coords with NA for moved columns
+        set(chunk, i = idx, j = "latitude_moved", value = chunk$latitude[idx])
+        set(chunk, i = idx, j = "longitude_moved", value = chunk$longitude[idx])
       }
     }
     

@@ -85,28 +85,35 @@ list(
   tar_target(raster_map, get_world_map(paths)),
   tar_target(cost_matrix, get_cost_matrix(paths, raster_map)),
 
-  # 4. GBIF occurrences download/cache per species
-  tar_target(gbif_occ, gbif_data(species)),
+  # 4. Check input coordinates file (validate coordinates)
+  tar_target(species_checked, {
+    species_checked <- species
+    species_checked$location_coordinates <- check_coordinates(species$location_coordinates, raster_map, cost_matrix)
+    species_checked
+  }),
 
-  # 5. Coordinate processing & land-to-sea correction
+  # 5. GBIF occurrences download/cache per species
+  tar_target(gbif_occ, gbif_data(species_checked)),
+
+  # 6. Coordinate processing & land-to-sea correction
   tar_target(coords, process_gbif_coords(gbif_occ, raster_map, cost_matrix),
     resources = tar_resources(
       future = tar_resources_future(plan = "multisession")
     )
   ),
 
-  # 6. Determine missing locations that need distance computation
-  tar_target(missing_locs, get_location(species, gbif_occ)),
+  # 7. Determine missing locations that need distance computation
+  tar_target(missing_locs, get_location(species_checked, gbif_occ)),
 
-  # 7. Prepare distance data table
+  # 8. Prepare distance data table
   tar_target(distances_dt,
              if (nrow(missing_locs) == 0) {
                NULL   # no missing locations, nothing to prepare
              } else {
-               add_missing_dist(species, missing_locs, coords)
+               add_missing_dist(species_checked, missing_locs, coords)
              }),
 
-  # 8. Compute seaway & geodesic distances (heavy; parallelisable)
+  # 9. Compute seaway & geodesic distances (heavy; parallelisable)
   tar_target(dists,
              if (is.null(distances_dt)) {
                list(sea_distances = NULL, geodesic_distances = NULL)
@@ -122,7 +129,7 @@ list(
   #)
  ),
 
-  # 9. Merge distances back to data table
+  # 10. Merge distances back to data table
   tar_target(distances_merged,
              if (is.null(distances_dt)) {
                NULL
@@ -132,15 +139,15 @@ list(
                distances_dt
              }),
 
-  # 10. Write species-specific CSV of occurrences with distances
+  # 11. Write species-specific CSV of occurrences with distances
   tar_target(distances_gbif_list,
              if (is.null(distances_merged)) {
                NULL
              } else {
-               create_gbif_occurrences_file(species, gbif_occ, distances_merged)
+               create_gbif_occurrences_file(species_checked, gbif_occ, distances_merged)
              }),
 
-  # 11. Final plots (side-effect)
+  # 12. Final plots (side-effect)
   tar_target(plotting,
              {
                if (!is.null(distances_gbif_list)) {
