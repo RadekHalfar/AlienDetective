@@ -25,7 +25,7 @@ make_hist_plot <- function(data,
 
   ggplot2::ggplot(data, mapping) +
     ggplot2::geom_histogram(binwidth = binwidth, boundary = 0, alpha = 0.7,
-                            position = "stack", colour = "#e9ecef") +
+                            position = "stack", colour = NA) +#, colour = "#e9ecef") +
     ggplot2::labs(title = title, x = x_label, y = y_label, fill = fill_col) +
     ggplot2::theme_bw(base_size = 12) +
     ggplot2::scale_x_continuous(breaks = seq(0, max_x * 1.1, by = breaks_by),
