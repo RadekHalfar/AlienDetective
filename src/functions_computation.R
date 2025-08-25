@@ -144,7 +144,6 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
     stop(sprintf("data is missing required columns: %s", paste(missing, collapse = ", ")))
   }
 
-  tryCatch({
     # Build origin (missing_locs) & destination (occurrence) coordinates
     origin_lon <- data$Longitude_missing_locs
     origin_lat <- data$Latitude_missing_locs
@@ -153,19 +152,18 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
 
     n <- length(origin_lon)
     sea_dist <- rep(NA_real_, n)
-
     # Only compute sea-route where destination is at sea
     at_sea <- raster::extract(raster_map, cbind(dest_lon, dest_lat)) == 1L
+    at_sea[is.na(at_sea)] <- FALSE # avoid propagating NAs
+
     if (any(at_sea)) {
       crs_wgs84 <- sp::CRS("+proj=longlat +datum=WGS84")
       sea_from  <- sp::SpatialPoints(cbind(origin_lon[at_sea], origin_lat[at_sea]), proj4string = crs_wgs84)
       sea_to    <- sp::SpatialPoints(cbind(dest_lon[at_sea],   dest_lat[at_sea]),   proj4string = crs_wgs84)
-
       sea_dist[at_sea] <- as.numeric(
         diag(gdistance::costDistance(cost_matrix, sea_from, sea_to))
       ) / 1000
     }
-
     # Row-wise geodesic distances
     geo_dist <- as.numeric(
       geodist::geodist(
@@ -180,11 +178,6 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
          geodesic_distances = round(geo_dist, 0),
          error_messages     = NULL)
 
-  }, error = function(e) {
-    list(sea_distances       = NULL,
-         geodesic_distances = NULL,
-         error_messages     = paste("calculate.distances_v2 error:", e$message))
-  })
 }
 
 # Process a data.table of coordinates and, if necessary, move points on land to the nearest sea cell.

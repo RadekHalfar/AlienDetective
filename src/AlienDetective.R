@@ -122,6 +122,6 @@ if(dim(missing_locs)[1] == 0){
 
 # Generate final profiling report without saving
 generate_profiling_report(save_report = FALSE,
-                          show_report = TRUE)
+                          show_report = FALSE)
 
 #print(pv)

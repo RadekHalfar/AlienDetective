@@ -118,7 +118,7 @@ list(
              if (is.null(distances_dt)) {
                list(sea_distances = NULL, geodesic_distances = NULL)
              } else {
-               calculate.distances(
+              calculate.distances(
                  data        = distances_dt,
                  raster_map  = raster_map,
                  cost_matrix = cost_matrix
