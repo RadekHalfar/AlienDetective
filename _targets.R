@@ -123,10 +123,10 @@ list(
                  raster_map  = raster_map,
                  cost_matrix = cost_matrix
                )
-             }
-  #resources = tar_resources(
-  #  future = tar_resources_future(plan = "multisession")
-  #)
+             }#,
+             #resources = tar_resources(
+             #  future = tar_resources_future(plan = "multisession")
+             #)
  ),
 
   # 10. Merge distances back to data table
