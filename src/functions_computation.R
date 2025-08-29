@@ -214,6 +214,17 @@ process_coords <- function(coords_dt, r, cost_matrix) {
 
   # Reusable sea-cell coordinate cache local to this call
   sea_cell_coords <- NULL
+  # Memoization cache for move_to_sea() results keyed by raster cell id
+  cache <- new.env(parent = emptyenv())
+  get_move <- function(cell, lat, lon) {
+    key <- as.character(cell)
+    if (exists(key, envir = cache, inherits = FALSE)) {
+      return(get(key, envir = cache))
+    }
+    res <- move_to_sea(lat, lon, r, cost_matrix, sea_cell_coords)
+    assign(key, res, envir = cache)
+    res
+  }
 
   for (i in seq_len(n_chunks)) {
     idx_start <- (i - 1) * chunk_size + 1
@@ -224,6 +235,7 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     # r has sea == 1 and land == NA; land if extracted value is NA
     xy <- cbind(chunk$longitude, chunk$latitude)
     vals <- raster::extract(r, xy)
+    cells <- raster::cellFromXY(r, xy)
     chunk[, is_land := is.na(vals)]
 
     # Handle points on land
@@ -232,7 +244,7 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     if (length(land_idx) > 0) {
       for (k in seq_along(land_idx)) {
         idx_pt <- land_idx[k]
-        res <- move_to_sea(chunk$latitude[idx_pt], chunk$longitude[idx_pt], r, cost_matrix, sea_cell_coords)
+        res <- get_move(cells[idx_pt], chunk$latitude[idx_pt], chunk$longitude[idx_pt])
         # update local cache for subsequent iterations (simple assignment)
         if (!is.null(res$sea_cell_coords)) {
           sea_cell_coords <- res$sea_cell_coords
