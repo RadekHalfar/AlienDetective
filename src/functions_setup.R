@@ -250,4 +250,3 @@ process_gbif_coords <- function(gbif_data, r, cost_matrix) {
   return(result_dt)
 }
   
-

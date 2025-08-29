@@ -201,28 +201,38 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     `:=`(latitude_moved = as.numeric(NA),
          longitude_moved = as.numeric(NA),
          dist_moved = 0.0)]
-  
+
+  # Work on unique coordinate rows to avoid redundant processing
+  uniq <- unique(result[, .(species, latitude, longitude)])
+  uniq[, `:=`(latitude_moved = as.numeric(NA),
+              longitude_moved = as.numeric(NA),
+              dist_moved = 0.0)]
+
   # Process coordinates in chunks to avoid memory issues (helps with very large tables)
   chunk_size <- 1000
-  n_chunks <- ceiling(nrow(result) / chunk_size)
-  
+  n_chunks <- ceiling(nrow(uniq) / chunk_size)
+
   # Reusable sea-cell coordinate cache local to this call
   sea_cell_coords <- NULL
-  
+
   for (i in seq_len(n_chunks)) {
     idx_start <- (i - 1) * chunk_size + 1
-    idx_end <- min(i * chunk_size, nrow(result))
-    chunk <- result[idx_start:idx_end]
-    
-    # Determine whether each point is on land
-    chunk[, is_land := mapply(is_on_land, latitude, longitude, MoreArgs = list(r = r))]
+    idx_end <- min(i * chunk_size, nrow(uniq))
+    chunk <- uniq[idx_start:idx_end]
+
+    # Determine whether each point is on land (vectorized raster extract)
+    # r has sea == 1 and land == NA; land if extracted value is NA
+    xy <- cbind(chunk$longitude, chunk$latitude)
+    vals <- raster::extract(r, xy)
+    chunk[, is_land := is.na(vals)]
+
     # Handle points on land
     land_idx <- which(chunk$is_land)
     moved <- vector("list", length(land_idx))
     if (length(land_idx) > 0) {
       for (k in seq_along(land_idx)) {
         idx_pt <- land_idx[k]
-        res <- move_to_sea(chunk$latitude[idx_pt], chunk$longitude[idx_pt], r, cost_matrix, sea_cell_coords)      
+        res <- move_to_sea(chunk$latitude[idx_pt], chunk$longitude[idx_pt], r, cost_matrix, sea_cell_coords)
         # update local cache for subsequent iterations (simple assignment)
         if (!is.null(res$sea_cell_coords)) {
           sea_cell_coords <- res$sea_cell_coords
@@ -230,7 +240,7 @@ process_coords <- function(coords_dt, r, cost_matrix) {
         moved[[k]] <- res
       }
     }
-    
+
     # Update moved coordinates
     for (j in seq_along(land_idx)) {
       idx <- land_idx[j]
@@ -244,20 +254,29 @@ process_coords <- function(coords_dt, r, cost_matrix) {
         set(chunk, i = idx, j = "longitude_moved", value = chunk$longitude[idx])
       }
     }
-    
+
     # For points already at sea, just copy the coordinates
     sea_idx <- which(!chunk$is_land)  # already in sea
     if (length(sea_idx) > 0) {
       set(chunk, i = sea_idx, j = "latitude_moved", value = chunk$latitude[sea_idx])
       set(chunk, i = sea_idx, j = "longitude_moved", value = chunk$longitude[sea_idx])
     }
-    
+
     # Remove temporary column
     chunk[, is_land := NULL]
-    
-    # Update result
-    result[idx_start:idx_end] <- chunk
+
+    # Update unique table
+    uniq[idx_start:idx_end] <- chunk
   }
+
+  # Join moved results back to the full table (including duplicates)
+  data.table::setkeyv(uniq, c("species", "latitude", "longitude"))
+  data.table::setkeyv(result, c("species", "latitude", "longitude"))
+  result[uniq, on = .(species, latitude, longitude), `:=`(
+    latitude_moved  = i.latitude_moved,
+    longitude_moved = i.longitude_moved,
+    dist_moved      = i.dist_moved
+  )]
   
   # -------------------------
   # Final housekeeping & return
