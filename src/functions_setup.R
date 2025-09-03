@@ -74,7 +74,7 @@ get_species <- function(paths){
   
   # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
   #species_location <- species_location[which(species_location$Specieslist %in% "Aurelia solida"),]
-  species_location <- species_location[which(species_location$Specieslist %in% c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")),]
+#  species_location <- species_location[which(species_location$Specieslist %in% c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")),]
   #species_location <- species_location[which(species_location$Specieslist %in% c("Acartia (Acanthacartia) tonsa")),]
 
   # Create a simple character vector of species names for easy iteration

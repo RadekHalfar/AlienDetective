@@ -202,8 +202,8 @@ process_coords <- function(coords_dt, r, cost_matrix) {
          longitude_moved = as.numeric(NA),
          dist_moved = 0.0)]
 
-  # Work on unique coordinate rows to avoid redundant processing
-  uniq <- unique(result[, .(species, latitude, longitude)])
+  # Work on unique coordinate rows ACROSS SPECIES to avoid redundant processing
+  uniq <- unique(result[, .(latitude, longitude)])
   uniq[, `:=`(latitude_moved = as.numeric(NA),
               longitude_moved = as.numeric(NA),
               dist_moved = 0.0)]
@@ -253,26 +253,21 @@ process_coords <- function(coords_dt, r, cost_matrix) {
       }
     }
 
-    # Update moved coordinates
-    for (j in seq_along(land_idx)) {
-      idx <- land_idx[j]
-      if (!is.null(moved[[j]])) {
-        set(chunk, i = idx, j = "latitude_moved", value = moved[[j]]$coords[2])
-        set(chunk, i = idx, j = "longitude_moved", value = moved[[j]]$coords[1])
-        set(chunk, i = idx, j = "dist_moved", value = round(moved[[j]]$dist/1000, 2))
-      } else {
-        # If move_to_sea failed, keep original coords with NA for moved columns
-        set(chunk, i = idx, j = "latitude_moved", value = chunk$latitude[idx])
-        set(chunk, i = idx, j = "longitude_moved", value = chunk$longitude[idx])
-      }
+    # Vectorized assignments: build output vectors once and assign
+    n <- nrow(chunk)
+    lat_mov  <- chunk$latitude
+    lon_mov  <- chunk$longitude
+    dist_mov <- numeric(n)
+    if (length(land_idx) > 0) {
+      lat_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[2], numeric(1))
+      lon_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[1], numeric(1))
+      dist_mov[land_idx] <- vapply(moved, function(x) if (is.null(x) || is.null(x$dist)) 0 else x$dist, numeric(1))
     }
-
-    # For points already at sea, just copy the coordinates
-    sea_idx <- which(!chunk$is_land)  # already in sea
-    if (length(sea_idx) > 0) {
-      set(chunk, i = sea_idx, j = "latitude_moved", value = chunk$latitude[sea_idx])
-      set(chunk, i = sea_idx, j = "longitude_moved", value = chunk$longitude[sea_idx])
-    }
+    chunk[, `:=`(
+      latitude_moved  = lat_mov,
+      longitude_moved = lon_mov,
+      dist_moved      = dist_mov
+    )]
 
     # Remove temporary column
     chunk[, is_land := NULL]
@@ -281,10 +276,10 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     uniq[idx_start:idx_end] <- chunk
   }
 
-  # Join moved results back to the full table (including duplicates)
-  data.table::setkeyv(uniq, c("species", "latitude", "longitude"))
-  data.table::setkeyv(result, c("species", "latitude", "longitude"))
-  result[uniq, on = .(species, latitude, longitude), `:=`(
+  # Join moved results back to the full table (including duplicates across species)
+  data.table::setkeyv(uniq, c("latitude", "longitude"))
+  data.table::setkeyv(result, c("latitude", "longitude"))
+  result[uniq, on = .(latitude, longitude), `:=`(
     latitude_moved  = i.latitude_moved,
     longitude_moved = i.longitude_moved,
     dist_moved      = i.dist_moved
