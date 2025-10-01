@@ -14,12 +14,17 @@ library(geosphere)
 
 library("profiling")
 
+  species_selection <-  "Aurelia solida"
+#  species_selection <- "Fibrocapsa japonica"
+#  species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
+#  species_selection <- c("Acartia (Acanthacartia) tonsa")
+
 # Initialize profiling
 .init_profiling(
   script_name = "AlienDetective.R",
   workers = 1,
   data_source = "GBIF",
-  species = "Aurelia solida",
+  species = species_selection,
   version = "1.0.0"
 )
 
@@ -36,9 +41,11 @@ profile_code("setup workspace", {
     paths <- setup_workspace()
 })
 
+
+
 # 2. Read species/location tables and metadata
 profile_code("get species", {
-    species_raw <- get_species(paths)
+    species_raw <- get_species(paths, species_select = species_selection)
 })
 
 # 3. Augment species object with paths and safe filenames
@@ -64,17 +71,26 @@ profile_code("get cost matrix", {
     cost_matrix <- get_cost_matrix(paths, raster_map)
 })
 
+# 6. GBIF occurrences download/cache (occ_search())
+#profile_code("gbif data", {
+#    gbif_occ <- gbif_data(species_checked)
+#})
+
+profile_code("download data", {
+    gbif_occ <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
+})
+
+#profile_code("load data", {
+#    gbif_occ <- load_gbif_data(zip_path = "./", key = "0032448-250920141307145")
+#})
+
+
 # 5. Check input coordinates file
 profile_code("check coordinates", {
     species_checked <- species
     species_checked$location_coordinates <- check_coordinates(
         species$location_coordinates, raster_map, cost_matrix
     )
-})
-
-# 6. GBIF occurrences download/cache
-profile_code("gbif data", {
-    gbif_occ <- gbif_data(species_checked)
 })
 
 # 7. Coordinate processing & land-to-sea correction

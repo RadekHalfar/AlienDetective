@@ -21,7 +21,7 @@ fetch_gbif_data <- function(species,
     fields = fields,
     limit = limit
   )
-  
+
   # Collapse all returned data.frames in one step – rbindlist handles conversion
   res <- rbindlist(
     lapply(data_list, `[[`, "data"),   # pull the $data element
@@ -29,7 +29,6 @@ fetch_gbif_data <- function(species,
     use.names = TRUE,
     fill = TRUE
   )
-  
   if (nrow(res) == 0) {
     message(sprintf("No GBIF records found for species '%s'", species))
     return(NULL)
@@ -187,6 +186,7 @@ process_coords <- function(coords_dt, r, cost_matrix) {
   # -------------------------
   # Input validation
   # -------------------------
+  
   if (!data.table::is.data.table(coords_dt)) {
     stop("coords_dt must be a data.table")
   }

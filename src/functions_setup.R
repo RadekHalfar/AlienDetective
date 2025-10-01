@@ -56,7 +56,7 @@ setup_workspace <- function() {
 
 }
 
-get_species <- function(paths){
+get_species <- function(paths, species_select = "all") {
   # Read species-location presence/absence matrix using data.table
   species_location      <- data.table::fread(paths$species_location_path,  sep = ";")
   # If there are more than one row per species, keep only the first row for each species
@@ -69,13 +69,10 @@ get_species <- function(paths){
   # Set keys for faster lookups
   data.table::setkeyv(species_location, names(species_location)[1])
   data.table::setkey(location_coordinates, "Observatory.ID")
-  
-  # INSERT LIST OF NATIVE SPECIES TO REMOVE NATIVE SPECIES FROM DF LIST
-  
-  # Subselect species to run the script for (optional). Can also be used to exclude species, e.g. known natives, by negating the which function
-  #species_location <- species_location[which(species_location$Specieslist %in% "Aurelia solida"),]
-#  species_location <- species_location[which(species_location$Specieslist %in% c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")),]
-  #species_location <- species_location[which(species_location$Specieslist %in% c("Acartia (Acanthacartia) tonsa")),]
+    
+  if(species_select != "all") {
+    species_location <- species_location[which(species_location$Specieslist %in% species_select),]
+  }
 
   # Create a simple character vector of species names for easy iteration
   species_vec <- as.character(species_location[[1]])
@@ -83,8 +80,93 @@ get_species <- function(paths){
   species <- list(species_location = species_location,
                   location_coordinates = location_coordinates,
                   species_vec = species_vec)
-  
+
   return(species)
+}
+download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, email = NULL, continent = NULL, has_coords = TRUE) {
+  if (is.null(user))  user  <- Sys.getenv("GBIF_USER")
+  if (is.null(pwd))   pwd   <- Sys.getenv("GBIF_PWD")
+  if (is.null(email)) email <- Sys.getenv("GBIF_EMAIL")
+  
+  if (interactive()) {
+    if (user == "")  user  <- readline("Enter GBIF username: ")
+    if (pwd == "")   pwd   <- readline("Enter GBIF password: ")
+    if (email == "") email <- readline("Enter GBIF email: ")
+  }
+  
+  if (user == "" || pwd == "" || email == "") {
+    stop("GBIF credentials (user, pwd, email) must be set as environment variables or provided interactively.")
+  }
+
+  # Get the taxon key for Aurelia solida
+  key <- name_backbone(name = "Aurelia solida")$usageKey
+  # Build predicates for GBIF download
+  predicates <- list(
+    rgbif::pred_in("taxonKey", key),
+    rgbif::pred("continent", continent),
+    rgbif::pred("hasCoordinate", has_coords)
+  )
+
+  # Use do.call with predicates as first arguments, then credentials as named arguments
+  download_key <- do.call(
+    rgbif::occ_download,
+    c(predicates, list(user = user, pwd = pwd, email = email))
+  )
+  print(paste("GBIF download key:", download_key))
+  rgbif::occ_download_wait(download_key)
+  
+  dwca_path <- rgbif::occ_download_get(download_key, path = "./output")
+  occ_data <- rgbif::occ_download_import(dwca_path)
+  
+  print(paste("GBIF data downloaded to:", dwca_path))
+  
+  return(occ_data)
+}
+
+split_gbif_occurrences <- function(occ_data) {
+  # Ensure 'species' column exists (rename if needed)
+  if (!"species" %in% names(occ_data)) {
+    if ("scientificName" %in% names(occ_data)) {
+      occ_data[, species := scientificName]
+    } else {
+      stop("No 'species' or 'scientificName' column found in occ_data.")
+    }
+  }
+  # Get unique species in order of appearance
+  species_vec <- unique(occ_data$species)
+  # Split data.table by species
+  gbif_occurrences <- split(occ_data, by = "species", keep.by = TRUE)
+  # Ensure the list is ordered as species_vec
+  gbif_occurrences <- gbif_occurrences[species_vec]
+  
+  # Return as a list with both components
+  return(list(
+    gbif_occurrences = gbif_occurrences,
+    species = species_vec
+  ))
+}
+
+
+load_gbif_data <- function(zip_path, key = NULL) {
+  # Check if file exists
+  if (!file.exists(zip_path)) {
+    stop("GBIF zip file not found: ", zip_path)
+  }
+  # Get the GBIF download object
+  gbif_download <- rgbif::occ_download_get(path = zip_path, key = key)
+  # Import GBIF Darwin Core Archive using rgbif
+  occ_data <- rgbif::occ_download_import(gbif_download)
+
+  occ_data <- data.table::as.data.table(occ_data) # ensure data.table
+  occ_data <- occ_data[, .(basisOfRecord,
+                           latitude = decimalLatitude,
+                           longitude = decimalLongitude,
+                           year,
+                           month,
+                           country = countryCode,
+                           species = scientificName)]
+
+  return(split_gbif_occurrences(occ_data))
 }
 
 # Load rasterized world map if it exists, otherwise load custom vector shapefile and rasterize it
@@ -179,7 +261,6 @@ gbif_data <- function(species, write_gbif_file = TRUE){
                              SIMPLIFY = FALSE)
   
   names(occurrences_list) <- species$species_vec
-  
   return(list(gbif_occurrences = occurrences_list,
               species = species$species_vec))
 }
@@ -208,10 +289,10 @@ get_location <- function(species, gbif_data) {
 
   # Attach species names for easier downstream access
   names(missing_locs) <- species$species_vec
-  
+
   # Remove NULLs and empty character vectors
   missing_locs <- Filter(function(x) !is.null(x) && length(x) > 0, missing_locs)
-  
+
   # convert to data.table
   missing_locs_dt <- rbindlist(
     lapply(names(missing_locs), function(sp) {
@@ -219,13 +300,14 @@ get_location <- function(species, gbif_data) {
     }),
     use.names = TRUE
   )
-  
+
   return(missing_locs_dt)
   
 }
 
 # Extract unique latitude/longitude pairs for each species
 process_gbif_coords <- function(gbif_data, r, cost_matrix) {
+
   res <- lapply(gbif_data$gbif_occurrences,
                 function(tbl) unique(tbl[, c("latitude", "longitude")]))
   # Ensure list is named by species

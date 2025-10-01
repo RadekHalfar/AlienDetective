@@ -63,7 +63,7 @@ list(
   tar_target(paths, setup_workspace()),
 
   # 2. Read species/location tables and metadata
-  tar_target(species_raw, get_species(paths)),
+  tar_target(species_raw, get_species(paths, species_select = "Aurelia solida")),
 
   # 3. Augment species object with paths and safe filenames (adds safe_name, directory, gbif_file)
   tar_target(species, {

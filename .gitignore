@@ -6,3 +6,4 @@ Input/land_polygons/*
 profiling_reports/*
 output/*
 _targets/
+.Renviron

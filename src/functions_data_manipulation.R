@@ -57,19 +57,17 @@ create_gbif_occurrences_file <- function(species, gbif_data, distances_dt, write
 add_missing_dist <- function(species, missing_locs, unique_coords){
   # add information about lattitude and longitude to missing locations
   setkey(species$location_coordinates, Observatory.ID) # Set keys for fast join
-  
   # Perform the join (left join)
   missing_locs <- species$location_coordinates[
     missing_locs,
     on = .(Observatory.ID = missing_locs)
   ]
-  
   # create data table for row wise calculation of calculate.distances function
   setnames(missing_locs, c("Longitude", "Latitude"),
            c("Longitude_missing_locs", "Latitude_missing_locs")) # Rename Longitude and Latitude in missing_locs
+  
   setkey(unique_coords, species)
   setkey(missing_locs, species)
   distances_dt <- missing_locs[unique_coords, allow.cartesian = TRUE] # Perform the join (many-to-many by species)
-  
   return(distances_dt)
 }
