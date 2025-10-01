@@ -80,7 +80,7 @@ plot.dist.by.country <- function(species, location, data, output_dir) {
   plot <- make_hist_plot(
     data      = data,
     x_col     = "x",
-    fill_col  = "country",
+    fill_col  = "countryCode",
     title     = sprintf("Sea-route distances by country for %s (%s)", species, location)
   )
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

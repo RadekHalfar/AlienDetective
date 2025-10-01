@@ -14,11 +14,19 @@ library(geosphere)
 
 library("profiling")
 
-  species_selection <-  "Aurelia solida"
+#  species_selection <-  "Aurelia solida"
 #  species_selection <- "Fibrocapsa japonica"
 #  species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
 #  species_selection <- c("Acartia (Acanthacartia) tonsa")
-
+  
+species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+                        "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
+                        "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
+                        "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
+                        "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
+                        "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
+                        "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
+  
 # Initialize profiling
 .init_profiling(
   script_name = "AlienDetective.R",
@@ -40,8 +48,6 @@ for (f in helper_files) source(f)
 profile_code("setup workspace", {
     paths <- setup_workspace()
 })
-
-
 
 # 2. Read species/location tables and metadata
 profile_code("get species", {
@@ -71,20 +77,6 @@ profile_code("get cost matrix", {
     cost_matrix <- get_cost_matrix(paths, raster_map)
 })
 
-# 6. GBIF occurrences download/cache (occ_search())
-#profile_code("gbif data", {
-#    gbif_occ <- gbif_data(species_checked)
-#})
-
-profile_code("download data", {
-    gbif_occ <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
-})
-
-#profile_code("load data", {
-#    gbif_occ <- load_gbif_data(zip_path = "./", key = "0032448-250920141307145")
-#})
-
-
 # 5. Check input coordinates file
 profile_code("check coordinates", {
     species_checked <- species
@@ -92,6 +84,60 @@ profile_code("check coordinates", {
         species$location_coordinates, raster_map, cost_matrix
     )
 })
+
+####
+
+# 6. GBIF occurrences download/cache (occ_search())
+#profile_code("gbif data", {
+#    gbif_occ <- gbif_data(species_checked)
+#})
+
+profile_code("download data", {
+   gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
+
+   gbif_data <- list()
+   for (spec in as.character(unique(gbif_occ_down[, "species"]))) {
+     aa <- gbif_occ_down %>% filter(species == spec)
+     bb <- data.table(aa[, "decimalLatitude"],
+                      aa[, "decimalLongitude"],
+                      aa[, "year"],
+                      aa[, "month"],
+                      aa[, "countryCode"],
+                      aa[, "basisOfRecord"])
+
+     setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
+
+     gbif_data[[spec]] <- bb
+   }
+   gbif_occ <- list()
+   gbif_occ$gbif_occurrences <- gbif_data
+   gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
+})
+
+# profile_code("load data", {
+#    gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036315-250920141307145")
+# 
+#     # gbif_data <- list()
+#     # for (spec in as.character(gbif_occ_down$species)) {
+#     #   aa <- gbif_occ_down %>% filter(species == spec)
+#     #   bb <- data.table(aa[, "decimalLatitude"],
+#     #                    aa[, "decimalLongitude"],
+#     #                    aa[, "year"],
+#     #                    aa[, "month"],
+#     #                    aa[, "county"],
+#     #                    aa[, "basisOfRecord"])
+#     # 
+#     #   setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
+#     # 
+#     #   gbif_data[[spec]] <- bb
+#     # }
+#     # gbif_occ <- list()
+#     # gbif_occ$gbif_occurrences <- gbif_data
+#     # gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
+# 
+# })
+
+####
 
 # 7. Coordinate processing & land-to-sea correction
 profile_code("process gbif coords", {

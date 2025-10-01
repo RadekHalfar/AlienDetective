@@ -69,8 +69,10 @@ get_species <- function(paths, species_select = "all") {
   # Set keys for faster lookups
   data.table::setkeyv(species_location, names(species_location)[1])
   data.table::setkey(location_coordinates, "Observatory.ID")
-    
-  if(species_select != "all") {
+  
+  if(length(species_select) > 1) {
+    species_location <- species_location[which(species_location$Specieslist %in% species_select),]
+  } else if (species_select != "all") {
     species_location <- species_location[which(species_location$Specieslist %in% species_select),]
   }
 
@@ -83,7 +85,10 @@ get_species <- function(paths, species_select = "all") {
 
   return(species)
 }
-download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, email = NULL, continent = NULL, has_coords = TRUE) {
+download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, 
+                               email = NULL, continent = NULL, 
+                               has_coords = TRUE, output_dir = "./data") {
+
   if (is.null(user))  user  <- Sys.getenv("GBIF_USER")
   if (is.null(pwd))   pwd   <- Sys.getenv("GBIF_PWD")
   if (is.null(email)) email <- Sys.getenv("GBIF_EMAIL")
@@ -104,7 +109,8 @@ download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, email = NUL
   predicates <- list(
     rgbif::pred_in("taxonKey", key),
     rgbif::pred("continent", continent),
-    rgbif::pred("hasCoordinate", has_coords)
+    rgbif::pred("hasCoordinate", has_coords),
+    rgbif::pred("basisOfRecord", "HUMAN_OBSERVATION")
   )
 
   # Use do.call with predicates as first arguments, then credentials as named arguments
@@ -115,7 +121,7 @@ download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, email = NUL
   print(paste("GBIF download key:", download_key))
   rgbif::occ_download_wait(download_key)
   
-  dwca_path <- rgbif::occ_download_get(download_key, path = "./output")
+  dwca_path <- rgbif::occ_download_get(download_key, path = output_dir)
   occ_data <- rgbif::occ_download_import(dwca_path)
   
   print(paste("GBIF data downloaded to:", dwca_path))
@@ -252,7 +258,7 @@ gbif_data <- function(species, write_gbif_file = TRUE){
       }
     }
     data.table::setDT(occ) # ensure data.table
-    occ
+    return(occ)
   }
   
   occurrences_list <- mapply(load_or_fetch,
