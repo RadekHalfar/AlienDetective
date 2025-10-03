@@ -15,17 +15,24 @@ library(geosphere)
 library("profiling")
 
 #  species_selection <-  "Aurelia solida"
-#  species_selection <- "Fibrocapsa japonica"
-#  species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
+species_selection <- c("Fibrocapsa japonica")
+# species_selection <- c("Fibrocapsa japonica", "Amphibalanus amphitrite")
+# species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
+# species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
 #  species_selection <- c("Acartia (Acanthacartia) tonsa")
   
-species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
-                        "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
-                        "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
-                        "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
-                        "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
-                        "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
-                        "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
+# # species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+# species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+#                         "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
+#                         "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
+#                         "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
+#                         "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
+#                         "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
+#                         "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
+
+# species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+#                          "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina")
+
   
 # Initialize profiling
 .init_profiling(
@@ -88,34 +95,56 @@ profile_code("check coordinates", {
 ####
 
 # 6. GBIF occurrences download/cache (occ_search())
-#profile_code("gbif data", {
+# profile_code("gbif data", {
 #    gbif_occ <- gbif_data(species_checked)
-#})
+# })
 
 profile_code("download data", {
-   gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
-
-   gbif_data <- list()
-   for (spec in as.character(unique(gbif_occ_down[, "species"]))) {
-     aa <- gbif_occ_down %>% filter(species == spec)
-     bb <- data.table(aa[, "decimalLatitude"],
-                      aa[, "decimalLongitude"],
-                      aa[, "year"],
-                      aa[, "month"],
-                      aa[, "countryCode"],
-                      aa[, "basisOfRecord"])
-
-     setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
-
-     gbif_data[[spec]] <- bb
-   }
-   gbif_occ <- list()
-   gbif_occ$gbif_occurrences <- gbif_data
-   gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
+  gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
+  
+  # gbif_data <- list()
+  # for (spec in as.character(unique(gbif_occ_down[, "species"]))) {
+  #   #print(spec)
+  #   aa <- gbif_occ_down |> filter(species == spec)
+  #   bb <- data.table(aa[, "decimalLatitude"],
+  #                    aa[, "decimalLongitude"],
+  #                    aa[, "year"],
+  #                    aa[, "month"],
+  #                    aa[, "countryCode"],
+  #                    aa[, "basisOfRecord"])
+  # 
+  #   setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
+  # 
+  #   gbif_data[[spec]] <- bb
+  # }
+  
+  ##############
+  setDT(gbif_occ_down)
+  
+  # rename once globally
+  setnames(gbif_occ_down,
+           old = c("decimalLongitude", "decimalLatitude"),
+           new = c("longitude", "latitude"),
+           skip_absent = TRUE)
+  
+  # keep only relevant columns (species must stay for split)
+  gbif_occ_down <- gbif_occ_down[, .(species, latitude, longitude, year, month, countryCode, basisOfRecord)]
+  
+  # split into list by species
+  gbif_data <- split(gbif_occ_down, by = "species", keep.by = FALSE)
+  #######
+  
+  gbif_occ <- list()
+  gbif_occ$gbif_occurrences <- gbif_data
+  gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
 })
 
 # profile_code("load data", {
-#    gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036315-250920141307145")
+# 
+#   print("loading data...")
+#   # gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036430-250920141307145") # 1 species
+#   gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036584-250920141307145") # 4 species
+#   #gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036452-250920141307145") # over 30 species
 # 
 #     # gbif_data <- list()
 #     # for (spec in as.character(gbif_occ_down$species)) {
@@ -126,40 +155,48 @@ profile_code("download data", {
 #     #                    aa[, "month"],
 #     #                    aa[, "county"],
 #     #                    aa[, "basisOfRecord"])
-#     # 
+#     #
 #     #   setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
-#     # 
+#     #
 #     #   gbif_data[[spec]] <- bb
 #     # }
 #     # gbif_occ <- list()
 #     # gbif_occ$gbif_occurrences <- gbif_data
 #     # gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
 # 
+#    print("data loaded")
 # })
 
 ####
 
 # 7. Coordinate processing & land-to-sea correction
 profile_code("process gbif coords", {
+  print("processing coordinates...")
     coords <- process_gbif_coords(gbif_occ, raster_map, cost_matrix)
+    print("coordinates processed")
 })
 
 # 8. Determine missing locations that need distance computation
 profile_code("get location", {
+    print("getting missing locations...")
     missing_locs <- get_location(species_checked, gbif_occ)
+    print("missing locations obtained")
 })
 
 # 9. Prepare distance data table
 profile_code("prepare distance data table", {
+    print("preparing distance data table...")
     if (nrow(missing_locs) == 0) {
         distances_dt <- NULL
     } else {
         distances_dt <- add_missing_dist(species_checked, missing_locs, coords)
     }
+    print("distance data table prepared")
 })
 
 # 10. Compute seaway & geodesic distances
 profile_code("compute distances", {
+    print("computing distances...")
     if (is.null(distances_dt)) {
     dists <- list(sea_distances = NULL, geodesic_distances = NULL)
     } else {
@@ -169,10 +206,12 @@ profile_code("compute distances", {
         cost_matrix = cost_matrix
     )
     }
+    print("distances computed")
 })
 
 # 11. Merge distances back into table
 profile_code("merge distances", {
+    print("merging distances...")
     if (is.null(distances_dt)) {
         distances_merged <- NULL
     } else {
@@ -180,10 +219,12 @@ profile_code("merge distances", {
         distances_dt[, dist_geodesic := if (!is.null(dists$geodesic_distances)) dists$geodesic_distances else NA_real_]
         distances_merged <- distances_dt
     }
+    print("distances merged")
 })
 
 # 12. Write species-specific CSV of occurrences with distances
 profile_code("write species-specific CSV", {
+    print("writing species-specific CSV...")
     if (is.null(distances_merged)) {
         distances_gbif_list <- NULL
     } else {
@@ -191,13 +232,16 @@ profile_code("write species-specific CSV", {
             species_checked, gbif_occ, distances_merged
         )
     }
+    print("species-specific CSV written")
 })
 
 # 13. Final plots (side-effect only)
 profile_code("final plots", {
+    print("creating final plots...")
     if (!is.null(distances_gbif_list)) {
         plot_data(distances_gbif_list)
     }
+    print("final plots done")
 })
 
 # Generate final profiling report without saving

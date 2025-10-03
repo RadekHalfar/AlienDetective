@@ -70,11 +70,11 @@ get_species <- function(paths, species_select = "all") {
   data.table::setkeyv(species_location, names(species_location)[1])
   data.table::setkey(location_coordinates, "Observatory.ID")
   
-  if(length(species_select) > 1) {
+#  if(length(species_select) > 1) {
     species_location <- species_location[which(species_location$Specieslist %in% species_select),]
-  } else if (species_select != "all") {
-    species_location <- species_location[which(species_location$Specieslist %in% species_select),]
-  }
+#  } else if (species_select != "all") {
+#    species_location <- species_location[which(species_location$Specieslist %in% species_select),]
+#  }
 
   # Create a simple character vector of species names for easy iteration
   species_vec <- as.character(species_location[[1]])
@@ -104,7 +104,11 @@ download_gbif_data <- function(species_vec, user = NULL, pwd = NULL,
   }
 
   # Get the taxon key for Aurelia solida
-  key <- name_backbone(name = "Aurelia solida")$usageKey
+#  key <- name_backbone(name = "Aurelia solida")$usageKey
+
+key <- sapply(species_vec, function(sp) {
+  name_backbone(name = sp)$usageKey
+})
   # Build predicates for GBIF download
   predicates <- list(
     rgbif::pred_in("taxonKey", key),
@@ -170,7 +174,8 @@ load_gbif_data <- function(zip_path, key = NULL) {
                            year,
                            month,
                            country = countryCode,
-                           species = scientificName)]
+                           #species = scientificName)]
+  species)]
 
   return(split_gbif_occurrences(occ_data))
 }
@@ -298,7 +303,7 @@ get_location <- function(species, gbif_data) {
 
   # Remove NULLs and empty character vectors
   missing_locs <- Filter(function(x) !is.null(x) && length(x) > 0, missing_locs)
-
+print(missing_locs)
   # convert to data.table
   missing_locs_dt <- rbindlist(
     lapply(names(missing_locs), function(sp) {

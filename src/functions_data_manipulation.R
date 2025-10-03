@@ -21,6 +21,15 @@ create_gbif_occurrences_file <- function(species, gbif_data, distances_dt, write
     # create list of data.tables per species
     distances_list <- split(distances_dt, by = "species", keep.by = FALSE)
 
+    # # filter out na vectors
+    # distances_list <- lapply(
+    #   distances_list,
+    #   function(dt) {
+    #     # remove columns where all values are NA
+    #     Filter(function(col) !all(is.na(col)), dt)
+    #   }
+    # )
+    
     # merge distances with gbif_data by species
     distances_gbif_list <- Map(function(dist_dt, gbif_dt) {
         merge(gbif_dt, dist_dt, by = c("latitude", "longitude"), all.x = TRUE)
