@@ -303,7 +303,7 @@ get_location <- function(species, gbif_data) {
 
   # Remove NULLs and empty character vectors
   missing_locs <- Filter(function(x) !is.null(x) && length(x) > 0, missing_locs)
-print(missing_locs)
+#print(missing_locs)
   # convert to data.table
   missing_locs_dt <- rbindlist(
     lapply(names(missing_locs), function(sp) {
