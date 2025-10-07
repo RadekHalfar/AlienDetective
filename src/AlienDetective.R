@@ -17,20 +17,21 @@ library("profiling")
 # species_selection <-  "Aurelia solida"
 # species_selection <- c("Aurelia solida", "Acartia tonsa")
 # species_selection <- "Fibrocapsa japonica"
-# species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
-species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
-#  species_selection <- c("Acartia (Acanthacartia) tonsa")
+# species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
   
-# species_selection <-   c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
-#                         "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
-#                         "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
-#                         "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
-#                         "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
-#                         "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
-#                         "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
+species_selection <-   c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+                        "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
+                        "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
+                        "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
+                        "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
+                        "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
+                        "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
 
-get_method <- "occ_search" # "download", "load", "occ_search"
-download_key <- "0057894-250920141307145" # 4 species
+get_method <- "load" # "download", "load", "occ_search"
+# download_key <- 0057835-250920141307145 # 1 species
+# download_key <- 0057864-250920141307145 # 2 species
+# download_key <- "0057894-250920141307145" # 4 species
+download_key <- "0058059-250920141307145" # 28 species
 
 # Initialize profiling
 .init_profiling(
@@ -94,7 +95,7 @@ profile_code("check coordinates", {
 if(get_method == "download"){
  
   profile_code("download data", {
-   gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL,
+   gbif_occ <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL,
                                        email = NULL, continent = "europe",
                                        has_coords = TRUE)
   })
@@ -118,7 +119,8 @@ if(get_method == "download"){
 # 7. Coordinate processing & land-to-sea correction
 profile_code("process gbif coords", {
   print("processing coordinates...")
-    coords <- process_gbif_coords(gbif_occ, raster_map, cost_matrix)
+    coords <- process_gbif_coords(gbif_occ, raster_map, cost_matrix, chunk_size  = 100000
+    )
     print("coordinates processed")
 })
 
@@ -149,7 +151,8 @@ profile_code("compute distances", {
     dists <- calculate.distances(
         data        = distances_dt,
         raster_map  = raster_map,
-        cost_matrix = cost_matrix
+        cost_matrix = cost_matrix,
+        chunk_size  = 10000
     )
     }
     print("distances computed")

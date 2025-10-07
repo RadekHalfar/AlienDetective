@@ -335,7 +335,7 @@ get_location <- function(species, gbif_data) {
 }
 
 # Extract unique latitude/longitude pairs for each species
-process_gbif_coords <- function(gbif_data, r, cost_matrix) {
+process_gbif_coords <- function(gbif_data, r, cost_matrix, chunk_size = 5000) {
 
   res <- lapply(gbif_data$gbif_occurrences,
                 function(tbl) unique(tbl[, c("latitude", "longitude")]))
@@ -356,7 +356,7 @@ process_gbif_coords <- function(gbif_data, r, cost_matrix) {
   )
 
   # Process coordinates, move points on land to sea
-  result_dt <- process_coords(result_dt, r, cost_matrix)
+  result_dt <- process_coords(coords_dt = result_dt, r = r, cost_matrix = cost_matrix, chunk_size = chunk_size)
 
   # remove rows with NA coordinates (could not be moved to sea)
   result_dt <- result_dt[!is.na(dist_moved), ]

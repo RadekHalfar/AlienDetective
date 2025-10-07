@@ -128,7 +128,7 @@ move_to_sea <- function(lat, lon, r, cost_matrix, sea_cell_coords = NULL) {
 }
 
 # Main function: calculates both sea route and geodesic distances from every downloaded GBIF occurrence to the species occurrence in question
-calculate.distances <- function(data, raster_map, cost_matrix) {
+calculate.distances <- function(data, raster_map, cost_matrix, chunk_size = 5000) {
   # Validate input -----------------------------------------------------------
   if (is.null(data) || nrow(data) == 0) {
     return(list(sea_distances = NULL,
@@ -143,46 +143,57 @@ calculate.distances <- function(data, raster_map, cost_matrix) {
     stop(sprintf("data is missing required columns: %s", paste(missing, collapse = ", ")))
   }
 
-    # Build origin (missing_locs) & destination (occurrence) coordinates
-    origin_lon <- data$Longitude_missing_locs
-    origin_lat <- data$Latitude_missing_locs
-    dest_lon <- ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved)
-    dest_lat <- ifelse(is.na(data$latitude_moved),  data$latitude,  data$latitude_moved)
+  # Build origin (missing_locs) & destination (occurrence) coordinates
+  origin_lon <- data$Longitude_missing_locs
+  origin_lat <- data$Latitude_missing_locs
+  dest_lon <- ifelse(is.na(data$longitude_moved), data$longitude, data$longitude_moved)
+  dest_lat <- ifelse(is.na(data$latitude_moved),  data$latitude,  data$latitude_moved)
 
-    n <- length(origin_lon)
-    sea_dist <- rep(NA_real_, n)
-    # Only compute sea-route where destination is at sea
-    at_sea <- raster::extract(raster_map, cbind(dest_lon, dest_lat)) == 1L
-    at_sea[is.na(at_sea)] <- FALSE # avoid propagating NAs
+  n <- length(origin_lon)
+  sea_dist <- rep(NA_real_, n)
+  # Only compute sea-route where destination is at sea
+  at_sea <- raster::extract(raster_map, cbind(dest_lon, dest_lat)) == 1L
+  at_sea[is.na(at_sea)] <- FALSE # avoid propagating NAs
 
-    if (any(at_sea)) {
-      crs_wgs84 <- sp::CRS("+proj=longlat +datum=WGS84")
-      sea_from  <- sp::SpatialPoints(cbind(origin_lon[at_sea], origin_lat[at_sea]), proj4string = crs_wgs84)
-      sea_to    <- sp::SpatialPoints(cbind(dest_lon[at_sea],   dest_lat[at_sea]),   proj4string = crs_wgs84)
-      sea_dist[at_sea] <- as.numeric(
-        diag(gdistance::costDistance(cost_matrix, sea_from, sea_to))
-      ) / 1000
+  if (any(at_sea)) {
+    crs_wgs84 <- sp::CRS("+proj=longlat +datum=WGS84")
+    idx <- which(at_sea)
+    # Chunk indices
+    chunk_idxs <- split(idx, ceiling(seq_along(idx) / chunk_size))
+    for (chunk in chunk_idxs) {
+      sea_from <- sp::SpatialPoints(cbind(origin_lon[chunk], origin_lat[chunk]), proj4string = crs_wgs84)
+      sea_to   <- sp::SpatialPoints(cbind(dest_lon[chunk],   dest_lat[chunk]),   proj4string = crs_wgs84)
+      # Try-catch to avoid errors for unreachable points
+#      res <- tryCatch(
+#        as.numeric(diag(gdistance::costDistance(cost_matrix, sea_from, sea_to))) / 1000,
+#        error = function(e) rep(NA_real_, length(chunk))
+#      )
+#      sea_dist[chunk] <- res
+
+      sea_dist[chunk] <- as.numeric(diag(gdistance::costDistance(cost_matrix, sea_from, sea_to))) / 1000
+
     }
-    # Row-wise geodesic distances
-    geo_dist <- as.numeric(
-      geodist::geodist(
-        data.table::data.table(lon = origin_lon, lat = origin_lat),
-        data.table::data.table(lon = dest_lon,   lat = dest_lat),
-        paired = TRUE,
-        measure = "geodesic"
-      )
-    ) / 1000
+  }
 
-    list(sea_distances       = round(sea_dist, 0),
-         geodesic_distances = round(geo_dist, 0),
-         error_messages     = NULL)
+  # Row-wise geodesic distances (vectorized, not memory intensive)
+  geo_dist <- as.numeric(
+    geodist::geodist(
+      data.table::data.table(lon = origin_lon, lat = origin_lat),
+      data.table::data.table(lon = dest_lon,   lat = dest_lat),
+      paired = TRUE,
+      measure = "geodesic"
+    )
+  ) / 1000
 
+  list(sea_distances       = round(sea_dist, 0),
+       geodesic_distances = round(geo_dist, 0),
+       error_messages     = NULL)
 }
 
 # Process a data.table of coordinates and, if necessary, move points on land to the nearest sea cell.
 # Expects a data.table with at least the columns: "species", "latitude", "longitude".
 # Returns the same table plus: latitude_moved, longitude_moved, dist_moved (km).
-process_coords <- function(coords_dt, r, cost_matrix) {
+process_coords <- function(coords_dt, r, cost_matrix, chunk_size = 5000) {
   # -------------------------
   # Input validation
   # -------------------------
@@ -209,7 +220,6 @@ process_coords <- function(coords_dt, r, cost_matrix) {
               dist_moved = 0.0)]
 
   # Process coordinates in chunks to avoid memory issues (helps with very large tables)
-  chunk_size <- 1000
   n_chunks <- ceiling(nrow(uniq) / chunk_size)
 
   # Reusable sea-cell coordinate cache local to this call
