@@ -258,10 +258,12 @@ process_coords <- function(coords_dt, r, cost_matrix) {
     lat_mov  <- chunk$latitude
     lon_mov  <- chunk$longitude
     dist_mov <- numeric(n)
+
+    # Only update those that were on land and got moved (if Cannot Be Moved to Sea return NA)
     if (length(land_idx) > 0) {
       lat_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[2], numeric(1))
       lon_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[1], numeric(1))
-      dist_mov[land_idx] <- vapply(moved, function(x) if (is.null(x) || is.null(x$dist)) 0 else x$dist, numeric(1))
+      dist_mov[land_idx] <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else if (is.null(x$dist)) 0 else x$dist, numeric(1))
     }
     chunk[, `:=`(
       latitude_moved  = lat_mov,

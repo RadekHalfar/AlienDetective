@@ -7,3 +7,4 @@ profiling_reports/*
 output/*
 _targets/
 .Renviron
+data_gbif/*

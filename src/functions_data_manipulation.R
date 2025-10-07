@@ -22,9 +22,28 @@ create_gbif_occurrences_file <- function(species, gbif_data, distances_dt, write
     distances_list <- split(distances_dt, by = "species", keep.by = FALSE)
 
     # merge distances with gbif_data by species
-    distances_gbif_list <- Map(function(dist_dt, gbif_dt) {
-        merge(gbif_dt, dist_dt, by = c("latitude", "longitude"), all.x = TRUE)
-    }, distances_list, gbif_data$gbif_occurrences)
+    # distances_gbif_list <- Map(function(dist_dt, gbif_dt) {
+    #     merge(gbif_dt, dist_dt, by = c("latitude", "longitude"), all.x = TRUE)
+    # }, distances_list, gbif_data$gbif_occurrences)
+    # 
+    species_in_common <- intersect(names(distances_list), names(gbif_data$gbif_occurrences))
+    
+    # ensure we only use matching species
+    distances_gbif_list <- lapply(species_in_common, function(sp) {
+      dist_dt <- distances_list[[sp]]
+      gbif_dt <- gbif_data$gbif_occurrences[[sp]]
+      
+      # convert to data.table just in case
+      setDT(dist_dt)
+      setDT(gbif_dt)
+      
+      # fast data.table join instead of merge()
+      gbif_dt[dist_dt, on = .(latitude, longitude)]
+    })
+    
+    # name the output list by species
+    names(distances_gbif_list) <- species_in_common
+    #######################################################
     
     # add gbif file name from species
     file_lookup <- setNames(species$gbif_file, species$species_vec)
@@ -63,6 +82,8 @@ add_missing_dist <- function(species, missing_locs, unique_coords){
     on = .(Observatory.ID = missing_locs)
   ]
   # create data table for row wise calculation of calculate.distances function
+  # setnames(missing_locs, c("Longitude", "Latitude"),
+  #          c("Longitude_missing_locs", "Latitude_missing_locs")) # Rename Longitude and Latitude in missing_locs
   setnames(missing_locs, c("Longitude", "Latitude"),
            c("Longitude_missing_locs", "Latitude_missing_locs")) # Rename Longitude and Latitude in missing_locs
   

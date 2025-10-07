@@ -87,7 +87,7 @@ get_species <- function(paths, species_select = "all") {
 }
 download_gbif_data <- function(species_vec, user = NULL, pwd = NULL, 
                                email = NULL, continent = NULL, 
-                               has_coords = TRUE, output_dir = "./data") {
+                               has_coords = TRUE, output_dir = "./data_gbif") {
 
   if (is.null(user))  user  <- Sys.getenv("GBIF_USER")
   if (is.null(pwd))   pwd   <- Sys.getenv("GBIF_PWD")
@@ -104,11 +104,11 @@ download_gbif_data <- function(species_vec, user = NULL, pwd = NULL,
   }
 
   # Get the taxon key for Aurelia solida
-#  key <- name_backbone(name = "Aurelia solida")$usageKey
-
-key <- sapply(species_vec, function(sp) {
-  name_backbone(name = sp)$usageKey
-})
+  #  key <- name_backbone(name = "Aurelia solida")$usageKey
+  
+  key <- sapply(species_vec, function(sp) {
+    name_backbone(name = sp)$usageKey
+  })
   # Build predicates for GBIF download
   predicates <- list(
     rgbif::pred_in("taxonKey", key),
@@ -129,6 +129,24 @@ key <- sapply(species_vec, function(sp) {
   occ_data <- rgbif::occ_download_import(dwca_path)
   
   print(paste("GBIF data downloaded to:", dwca_path))
+  
+  setDT(occ_data)
+  
+  # rename once globally
+  setnames(occ_data,
+           old = c("decimalLongitude", "decimalLatitude"),
+           new = c("longitude", "latitude"),
+           skip_absent = TRUE)
+  
+  # keep only relevant columns (species must stay for split)
+  occ_data <- occ_data[, .(species, latitude, longitude, year, month, countryCode, basisOfRecord)]
+  
+  # split into list by species
+  gbif_data <- split(occ_data, by = "species", keep.by = FALSE)
+  
+  gbif_occ <- list()
+  gbif_occ$gbif_occurrences <- gbif_data
+  gbif_occ$species <- as.character(unique(occ_data[, "species"]))
   
   return(occ_data)
 }
@@ -303,7 +321,7 @@ get_location <- function(species, gbif_data) {
 
   # Remove NULLs and empty character vectors
   missing_locs <- Filter(function(x) !is.null(x) && length(x) > 0, missing_locs)
-print(missing_locs)
+
   # convert to data.table
   missing_locs_dt <- rbindlist(
     lapply(names(missing_locs), function(sp) {
@@ -339,6 +357,9 @@ process_gbif_coords <- function(gbif_data, r, cost_matrix) {
 
   # Process coordinates, move points on land to sea
   result_dt <- process_coords(result_dt, r, cost_matrix)
+
+  # remove rows with NA coordinates (could not be moved to sea)
+  result_dt <- result_dt[!is.na(dist_moved), ]
 
   return(result_dt)
 }

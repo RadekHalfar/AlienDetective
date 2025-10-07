@@ -9,6 +9,13 @@ make_hist_plot <- function(data,
                            y_label = "Frequency") {
   stopifnot(is.data.frame(data), x_col %in% names(data))
 
+  # Filter out non-finite values
+  data <- data[is.finite(data[[x_col]]), ]
+  if (nrow(data) == 0) {
+    warning("No finite values to plot for ", x_col)
+    return(ggplot2::ggplot() + ggplot2::labs(title = paste("No finite data for", x_col)))
+  }
+
   max_x <- max(data[[x_col]], na.rm = TRUE)
 
   # Derive maximum bin count for y-axis scaling
@@ -77,10 +84,16 @@ plot.dist.both <- function(species, location, data, output_dir) {
 }
 
 plot.dist.by.country <- function(species, location, data, output_dir) {
+
+  # Choose fill_col: prefer countryCode, fallback to country
+  fill_col <- if ("countryCode" %in% names(data)) "countryCode"
+              else if ("country" %in% names(data)) "country"
+              else NULL
+
   plot <- make_hist_plot(
     data      = data,
     x_col     = "x",
-    fill_col  = "countryCode",
+    fill_col  = fill_col,
     title     = sprintf("Sea-route distances by country for %s (%s)", species, location)
   )
   if (!dir.exists(output_dir)) dir.create(output_dir, recursive = TRUE)

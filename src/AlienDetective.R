@@ -14,7 +14,8 @@ library(geosphere)
 
 library("profiling")
 
-#  species_selection <-  "Aurelia solida"
+# species_selection <-  "Aurelia solida"
+# species_selection <- c("Aurelia solida", "Acartia tonsa")
 # species_selection <- "Fibrocapsa japonica"
 # species_selection <- c("Aurelia solida", "Acartia (Acanthacartia) tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
 species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
@@ -27,7 +28,10 @@ species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitri
 #                         "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
 #                         "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
 #                         "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
-  
+
+get_method <- "occ_search" # "download", "load", "occ_search"
+download_key <- "0057894-250920141307145" # 4 species
+
 # Initialize profiling
 .init_profiling(
   script_name = "AlienDetective.R",
@@ -86,65 +90,30 @@ profile_code("check coordinates", {
     )
 })
 
-####
+# 6. get GBIF occurrences
+if(get_method == "download"){
+ 
+  profile_code("download data", {
+   gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL,
+                                       email = NULL, continent = "europe",
+                                       has_coords = TRUE)
+  })
+  
+} else if(get_method == "load"){
+  
+  profile_code("load data", {
+    print("loading data...")
+    gbif_occ <- load_gbif_data(zip_path = "./data_gbif", key = download_key) 
+    print("data loaded")
+  })
+  
+} else if (get_method == "occ_search"){
 
-# 6. GBIF occurrences download/cache (occ_search())
-#profile_code("gbif data", {
-#    gbif_occ <- gbif_data(species_checked)
-#})
+   profile_code("occ search", {
+     gbif_occ <- gbif_data(species_checked)
+  })
 
-profile_code("download data", {
-  gbif_occ_down <- download_gbif_data(species_raw$species_vec, user = NULL, pwd = NULL, email = NULL, continent = "europe", has_coords = TRUE)
-
-  gbif_data <- list()
-  for (spec in as.character(unique(gbif_occ_down[, "species"]))) {
-#    print(spec)
-    aa <- gbif_occ_down %>% filter(species == spec)
-    bb <- data.table(aa[, "decimalLatitude"],
-                     aa[, "decimalLongitude"],
-                     aa[, "year"],
-                     aa[, "month"],
-                     aa[, "countryCode"],
-                     aa[, "basisOfRecord"])
-
-    setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
-
-    gbif_data[[spec]] <- bb
-  }
-  gbif_occ <- list()
-  gbif_occ$gbif_occurrences <- gbif_data
-  gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
-})
-
-# profile_code("load data", {
-# 
-#   print("loading data...")
-#   # gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036430-250920141307145") # 1 species
-#   gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036584-250920141307145") # 4 species
-#   #gbif_occ <- load_gbif_data(zip_path = "./data", key = "0036452-250920141307145") # over 30 species
-# 
-#     # gbif_data <- list()
-#     # for (spec in as.character(gbif_occ_down$species)) {
-#     #   aa <- gbif_occ_down %>% filter(species == spec)
-#     #   bb <- data.table(aa[, "decimalLatitude"],
-#     #                    aa[, "decimalLongitude"],
-#     #                    aa[, "year"],
-#     #                    aa[, "month"],
-#     #                    aa[, "county"],
-#     #                    aa[, "basisOfRecord"])
-#     #
-#     #   setnames(bb, old = c("decimalLongitude", "decimalLatitude"), new = c("longitude", "latitude"))
-#     #
-#     #   gbif_data[[spec]] <- bb
-#     # }
-#     # gbif_occ <- list()
-#     # gbif_occ$gbif_occurrences <- gbif_data
-#     # gbif_occ$species <- as.character(unique(gbif_occ_down[, "species"]))
-# 
-#    print("data loaded")
-# })
-
-####
+}
 
 # 7. Coordinate processing & land-to-sea correction
 profile_code("process gbif coords", {
