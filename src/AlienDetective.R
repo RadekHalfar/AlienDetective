@@ -17,15 +17,14 @@ library("profiling")
 # species_selection <-  "Aurelia solida"
 # species_selection <- c("Aurelia solida", "Acartia tonsa")
 # species_selection <- "Fibrocapsa japonica"
-# species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
-  
-species_selection <-   c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
-                        "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
-                        "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
-                        "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
-                        "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
-                        "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
-                        "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
+species_selection <- c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus")
+# species_selection <-   c("Aurelia solida", "Acartia tonsa", "Amphibalanus amphitrite", "Amphibalanus eburneus",
+#                         "Boccardia proboscidea", "Bonnemaisonia hamifera", "Botrylloides violaceus", "Bugula neritina",
+#                         "Caprella mutica", "Caprella scaura", "Celleporaria brunnea", "Cephalothrix simula",
+#                         "Cordylophora caspia", "Corella eumyota", "Corella sp.", "Crepidula fornicata", "Cutleria multifida",
+#                         "Dasysiphonia japonica", "Dreisseninae sp.", "Eucheilota menoni", "Fenestrulina delicia",
+#                         "Fibrocapsa japonica", "Ficopomatus enigmaticus", "Gonionemus vertens", "Haloa japonica",
+#                         "Halothrix lumbricalis","Hemigrapsus takanoi", "Herdmania momus")
 
 get_method <- "load" # "download", "load", "occ_search"
 # download_key <- 0057835-250920141307145 # 1 species
@@ -33,14 +32,26 @@ get_method <- "load" # "download", "load", "occ_search"
 # download_key <- "0057894-250920141307145" # 4 species
 download_key <- "0058059-250920141307145" # 28 species
 
-# Initialize profiling
-.init_profiling(
-  script_name = "AlienDetective.R",
-  workers = 1,
-  data_source = "GBIF",
-  species = species_selection,
-  version = "1.0.0"
-)
+if(get_method == "load"){
+    # Initialize profiling
+    .init_profiling(
+    script_name = "AlienDetective.R",
+    workers = 1,
+    data_source = "GBIF",
+    species = paste0(get_method, ", download_key :", download_key),
+    version = "1.0.0"
+    )
+} else {
+       # Initialize profiling
+    .init_profiling(
+    script_name = "AlienDetective.R",
+    workers = 1,
+    data_source = "GBIF",
+    species = paste0(get_method, ", species_selection :", species_selection),
+    version = "1.0.0"
+    )
+}
+
 
 # Source helper functions -------------------------------------------------------
 helper_files <- list.files("src", pattern = "^functions_.*\\.R$", full.names = TRUE)
@@ -54,6 +65,18 @@ for (f in helper_files) source(f)
 profile_code("setup workspace", {
     paths <- setup_workspace()
 })
+
+# 1b. Load GBIF data if loading method selected
+if(get_method == "load"){
+  
+  profile_code("load data", {
+    print("loading data...")
+    gbif_occ <- load_gbif_data(zip_path = "./data_gbif", key = download_key) 
+    species_selection <- gbif_occ$species
+    print("data loaded")
+  })
+  
+} 
 
 # 2. Read species/location tables and metadata
 profile_code("get species", {
@@ -100,14 +123,6 @@ if(get_method == "download"){
                                        has_coords = TRUE)
   })
   
-} else if(get_method == "load"){
-  
-  profile_code("load data", {
-    print("loading data...")
-    gbif_occ <- load_gbif_data(zip_path = "./data_gbif", key = download_key) 
-    print("data loaded")
-  })
-  
 } else if (get_method == "occ_search"){
 
    profile_code("occ search", {
@@ -119,7 +134,7 @@ if(get_method == "download"){
 # 7. Coordinate processing & land-to-sea correction
 profile_code("process gbif coords", {
   print("processing coordinates...")
-    coords <- process_gbif_coords(gbif_occ, raster_map, cost_matrix, chunk_size  = 100000
+    coords <- process_gbif_coords(gbif_occ, raster_map, cost_matrix, paths, chunk_size  = 500
     )
     print("coordinates processed")
 })
@@ -195,4 +210,4 @@ profile_code("final plots", {
 
 # Generate final profiling report without saving
 generate_profiling_report(save_report = TRUE,
-                          show_report = FALSE)
+                          show_report = TRUE)

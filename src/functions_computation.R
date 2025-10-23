@@ -193,11 +193,7 @@ calculate.distances <- function(data, raster_map, cost_matrix, chunk_size = 5000
 # Process a data.table of coordinates and, if necessary, move points on land to the nearest sea cell.
 # Expects a data.table with at least the columns: "species", "latitude", "longitude".
 # Returns the same table plus: latitude_moved, longitude_moved, dist_moved (km).
-process_coords <- function(coords_dt, r, cost_matrix, chunk_size = 5000) {
-  # -------------------------
-  # Input validation
-  # -------------------------
-  
+process_coords <- function(coords_dt, r, cost_matrix, paths, chunk_size = 5000, parallel = TRUE, workers = 6) {
   if (!data.table::is.data.table(coords_dt)) {
     stop("coords_dt must be a data.table")
   }
@@ -206,89 +202,80 @@ process_coords <- function(coords_dt, r, cost_matrix, chunk_size = 5000) {
   if (length(missing)) {
     stop(sprintf("coords_dt is missing required columns: %s", paste(missing, collapse = ", ")))
   }
-  
-  # Make a copy so we don't modify the original
+
   result <- data.table::copy(coords_dt)[,
     `:=`(latitude_moved = as.numeric(NA),
          longitude_moved = as.numeric(NA),
          dist_moved = 0.0)]
 
-  # Work on unique coordinate rows ACROSS SPECIES to avoid redundant processing
   uniq <- unique(result[, .(latitude, longitude)])
   uniq[, `:=`(latitude_moved = as.numeric(NA),
               longitude_moved = as.numeric(NA),
               dist_moved = 0.0)]
 
-  # Process coordinates in chunks to avoid memory issues (helps with very large tables)
-  n_chunks <- ceiling(nrow(uniq) / chunk_size)
+  idx_chunks <- split(seq_len(nrow(uniq)), ceiling(seq_len(nrow(uniq)) / chunk_size))
 
-  # Reusable sea-cell coordinate cache local to this call
   sea_cell_coords <- NULL
+
   # Memoization cache for move_to_sea() results keyed by raster cell id
+  # Each worker gets its own cache, so memoization is per chunk
+  process_chunk <- function(chunk_idx, paths) {
+  # Load large objects inside the worker
+  r <- get_world_map(paths)#readRDS(file.path("data", "rasterized_land_polygons.rds"))
+  cost_matrix <- get_cost_matrix(paths, r)#readRDS(file.path("data", "cost_matrix.rds"))
+  
+  chunk <- uniq[chunk_idx]
+  xy <- cbind(chunk$longitude, chunk$latitude)
+  vals <- raster::extract(r, xy)
+  cells <- raster::cellFromXY(r, xy)
+  chunk[, is_land := is.na(vals)]
+
   cache <- new.env(parent = emptyenv())
   get_move <- function(cell, lat, lon) {
     key <- as.character(cell)
-    if (exists(key, envir = cache, inherits = FALSE)) {
-      return(get(key, envir = cache))
-    }
-    res <- move_to_sea(lat, lon, r, cost_matrix, sea_cell_coords)
+    if (exists(key, envir = cache, inherits = FALSE)) return(get(key, envir = cache))
+    res <- move_to_sea(lat, lon, r, cost_matrix, sea_cell_coords = NULL)
     assign(key, res, envir = cache)
     res
   }
 
-  for (i in seq_len(n_chunks)) {
-    idx_start <- (i - 1) * chunk_size + 1
-    idx_end <- min(i * chunk_size, nrow(uniq))
-    chunk <- uniq[idx_start:idx_end]
-
-    # Determine whether each point is on land (vectorized raster extract)
-    # r has sea == 1 and land == NA; land if extracted value is NA
-    xy <- cbind(chunk$longitude, chunk$latitude)
-    vals <- raster::extract(r, xy)
-    cells <- raster::cellFromXY(r, xy)
-    chunk[, is_land := is.na(vals)]
-
-    # Handle points on land
-    land_idx <- which(chunk$is_land)
-    moved <- vector("list", length(land_idx))
-    if (length(land_idx) > 0) {
-      for (k in seq_along(land_idx)) {
-        idx_pt <- land_idx[k]
-        res <- get_move(cells[idx_pt], chunk$latitude[idx_pt], chunk$longitude[idx_pt])
-        # update local cache for subsequent iterations (simple assignment)
-        if (!is.null(res$sea_cell_coords)) {
-          sea_cell_coords <- res$sea_cell_coords
-        }
-        moved[[k]] <- res
-      }
+  land_idx <- which(chunk$is_land)
+  moved <- vector("list", length(land_idx))
+  if (length(land_idx) > 0) {
+    for (k in seq_along(land_idx)) {
+      idx_pt <- land_idx[k]
+      res <- get_move(cells[idx_pt], chunk$latitude[idx_pt], chunk$longitude[idx_pt])
+      moved[[k]] <- res
     }
-
-    # Vectorized assignments: build output vectors once and assign
-    n <- nrow(chunk)
-    lat_mov  <- chunk$latitude
-    lon_mov  <- chunk$longitude
-    dist_mov <- numeric(n)
-
-    # Only update those that were on land and got moved (if Cannot Be Moved to Sea return NA)
-    if (length(land_idx) > 0) {
-      lat_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[2], numeric(1))
-      lon_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[1], numeric(1))
-      dist_mov[land_idx] <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else if (is.null(x$dist)) 0 else x$dist, numeric(1))
-    }
-    chunk[, `:=`(
-      latitude_moved  = lat_mov,
-      longitude_moved = lon_mov,
-      dist_moved      = dist_mov
-    )]
-
-    # Remove temporary column
-    chunk[, is_land := NULL]
-
-    # Update unique table
-    uniq[idx_start:idx_end] <- chunk
   }
 
-  # Join moved results back to the full table (including duplicates across species)
+  lat_mov  <- chunk$latitude
+  lon_mov  <- chunk$longitude
+  dist_mov <- numeric(nrow(chunk))
+
+  if (length(land_idx) > 0) {
+    lat_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[2], numeric(1))
+    lon_mov[land_idx]  <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else x$coords[1], numeric(1))
+    dist_mov[land_idx] <- vapply(moved, function(x) if (is.null(x) || is.null(x$coords)) NA_real_ else if (is.null(x$dist)) 0 else x$dist, numeric(1))
+  }
+  chunk[, `:=`(
+    latitude_moved  = lat_mov,
+    longitude_moved = lon_mov,
+    dist_moved      = dist_mov
+  )]
+  chunk[, is_land := NULL]
+  chunk
+}
+
+  if (parallel) {
+    future::plan(future::multisession, workers = workers)
+    chunk_results <- future.apply::future_lapply(idx_chunks, process_chunk, paths = paths, future.seed = TRUE)
+  } else {
+    chunk_results <- lapply(idx_chunks, process_chunk, paths = paths)
+  }
+
+  uniq <- rbindlist(chunk_results)
+
   data.table::setkeyv(uniq, c("latitude", "longitude"))
   data.table::setkeyv(result, c("latitude", "longitude"))
   result[uniq, on = .(latitude, longitude), `:=`(
@@ -296,14 +283,11 @@ process_coords <- function(coords_dt, r, cost_matrix, chunk_size = 5000) {
     longitude_moved = i.longitude_moved,
     dist_moved      = i.dist_moved
   )]
-  
-  # -------------------------
-  # Final housekeeping & return
-  # -------------------------
+
   setcolorder(result, c("species", "latitude", "longitude",
                         "latitude_moved", "longitude_moved", "dist_moved"))
   data.table::setkeyv(result, c("species", "latitude", "longitude"))
-  return(result[])
+  result[]
 }
 
 # compute missing distance locations
